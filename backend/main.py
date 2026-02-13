@@ -8,6 +8,10 @@ import os
 from backend.code_runner import CodeRunner
 from backend.api_caller import ApiCaller
 from backend.ai_service import AiService
+from backend.database import init_db, get_db_connection
+
+# Initialize the database
+init_db()
 
 app = FastAPI(title="PyTool Backend")
 
@@ -45,6 +49,12 @@ class AiChatRequest(BaseModel):
     system_prompt: str = "You are a helpful assistant."
     api_key: Optional[str] = None
 
+class Website(BaseModel):
+    name: str
+    link: str
+    icon: Optional[str] = None
+    description: Optional[str] = None
+
 
 # --- Endpoints ---
 @app.get("/health")
@@ -78,6 +88,24 @@ async def ai_chat(req: AiChatRequest):
         system_prompt=req.system_prompt,
         api_key=req.api_key,
     )
+
+@app.get("/websites")
+async def list_websites():
+    conn = get_db_connection()
+    websites = conn.execute("SELECT * FROM websites").fetchall()
+    conn.close()
+    return [dict(w) for w in websites]
+
+@app.post("/websites")
+async def add_website(website: Website):
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO websites (name, link, icon, description) VALUES (?, ?, ?, ?)",
+        (website.name, website.link, website.icon, website.description)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
 
 
 # Serve React build in production

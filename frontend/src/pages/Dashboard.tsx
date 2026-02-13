@@ -1,10 +1,59 @@
-import { useState } from "react";
-import { Globe, Server, CheckSquare, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink } from "lucide-react";
 
 type Tab = "Websites" | "Servers" | "Tasks" | "Notes";
 
+interface Website {
+    id?: number;
+    name: string;
+    link: string;
+    icon: string;
+    description: string;
+}
+
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("Websites");
+    const [websites, setWebsites] = useState<Website[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newWebsite, setNewWebsite] = useState<Website>({ name: "", link: "", icon: "", description: "" });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === "Websites") {
+            fetchWebsites();
+        }
+    }, [activeTab]);
+
+    const fetchWebsites = async () => {
+        try {
+            const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            const res = await fetch(`${apiBase}/websites`);
+            const data = await res.json();
+            setWebsites(data);
+        } catch (e) {
+            console.error("Failed to fetch websites:", e);
+        }
+    };
+
+    const saveWebsite = async () => {
+        if (!newWebsite.name || !newWebsite.link) return;
+        setLoading(true);
+        try {
+            const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+            await fetch(`${apiBase}/websites`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newWebsite),
+            });
+            setIsModalOpen(false);
+            setNewWebsite({ name: "", link: "", icon: "", description: "" });
+            fetchWebsites();
+        } catch (e) {
+            console.error("Failed to save website:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const tabs: { id: Tab; icon: any }[] = [
         { id: "Websites", icon: Globe },
@@ -17,6 +66,15 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+                {activeTab === "Websites" && (
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95 cursor-pointer font-medium"
+                    >
+                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                        Add Website
+                    </button>
+                )}
             </div>
 
             {/* Tabs Header */}
@@ -36,20 +94,138 @@ export default function Dashboard() {
                 ))}
             </div>
 
-            {/* Tab Content Placeholder */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-8 min-h-[400px] flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4 text-zinc-600">
-                    {(() => {
-                        const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon;
-                        return ActiveIcon ? <ActiveIcon size={32} /> : null;
-                    })()}
-                </div>
-                <h3 className="text-lg font-medium text-zinc-300 mb-2">{activeTab}</h3>
-                <p className="text-zinc-500 max-w-sm">
-                    Management interface for your {activeTab.toLowerCase()} will appear here.
-                    This is a placeholder for the Dashboard feature.
-                </p>
+            {/* Tab Content */}
+            <div className="min-h-[400px]">
+                {activeTab === "Websites" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {websites.map((site, i) => (
+                            <a
+                                key={i}
+                                href={site.link.startsWith('http') ? site.link : `https://${site.link}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full"
+                            >
+                                {/* Background Glow */}
+                                <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-2xl shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all duration-500">
+                                        {site.icon || "🌐"}
+                                    </div>
+                                    <div className="p-2 rounded-lg bg-zinc-800/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <ExternalLink size={14} className="text-emerald-400" />
+                                    </div>
+                                </div>
+
+                                <h3 className="text-lg font-bold text-zinc-100 mb-2 group-hover:text-emerald-400 transition-colors duration-300">{site.name}</h3>
+                                <p className="text-sm text-zinc-400 line-clamp-3 flex-1 leading-relaxed">{site.description || "No description provided."}</p>
+
+                                <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center gap-2">
+                                    <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold group-hover:text-emerald-500/70 transition-colors">Visit Site</div>
+                                    <div className="h-[1px] flex-1 bg-zinc-800 group-hover:bg-emerald-500/20 transition-colors"></div>
+                                </div>
+                            </a>
+                        ))}
+                        {websites.length === 0 && (
+                            <div className="col-span-full py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-800/30 rounded-3xl bg-zinc-900/10">
+                                <div className="mb-6 opacity-10 flex justify-center"><Globe size={80} /></div>
+                                <h4 className="text-xl font-medium text-zinc-300 mb-2">No websites yet</h4>
+                                <p className="text-zinc-500">Add your favorite links to showcase them here.</p>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="bg-zinc-900/20 border border-zinc-800/50 rounded-3xl p-12 min-h-[400px] flex flex-col items-center justify-center text-center backdrop-blur-sm">
+                        <div className="w-20 h-20 bg-zinc-800/50 rounded-2xl flex items-center justify-center mb-6 text-zinc-600 border border-zinc-700/50 shadow-xl">
+                            {(() => {
+                                const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon;
+                                return ActiveIcon ? <ActiveIcon size={36} /> : null;
+                            })()}
+                        </div>
+                        <h3 className="text-xl font-bold text-zinc-200 mb-3">{activeTab}</h3>
+                        <p className="text-zinc-500 max-w-sm leading-relaxed">
+                            This module is currently being optimized for the best experience.
+                            Stay tuned for more updates!
+                        </p>
+                    </div>
+                )}
             </div>
+
+            {/* Add Website Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                        <div className="flex justify-between items-center p-6 border-b border-zinc-800/50 bg-zinc-900/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
+                                    <Plus size={20} />
+                                </div>
+                                <h3 className="text-xl font-bold text-white">New Website</h3>
+                            </div>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Website Name</label>
+                                <input
+                                    type="text"
+                                    value={newWebsite.name}
+                                    onChange={(e) => setNewWebsite({ ...newWebsite, name: e.target.value })}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none"
+                                    placeholder="e.g. Google"
+                                />
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Destination Link</label>
+                                <input
+                                    type="text"
+                                    value={newWebsite.link}
+                                    onChange={(e) => setNewWebsite({ ...newWebsite, link: e.target.value })}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none"
+                                    placeholder="https://google.com"
+                                />
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="col-span-1 space-y-2 group">
+                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Emoji Icon</label>
+                                    <input
+                                        type="text"
+                                        value={newWebsite.icon}
+                                        onChange={(e) => setNewWebsite({ ...newWebsite, icon: e.target.value })}
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
+                                        placeholder="🚀"
+                                    />
+                                </div>
+                                <div className="col-span-2 space-y-2 group">
+                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Brief Description</label>
+                                    <input
+                                        type="text"
+                                        value={newWebsite.description}
+                                        onChange={(e) => setNewWebsite({ ...newWebsite, description: e.target.value })}
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
+                                        placeholder="What is this site?"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4">
+                            <button
+                                onClick={saveWebsite}
+                                disabled={loading || !newWebsite.name || !newWebsite.link}
+                                className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer"
+                            >
+                                {loading ? "Adding to list..." : "Create Website Entry"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
