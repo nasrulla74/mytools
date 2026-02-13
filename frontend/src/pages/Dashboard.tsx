@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink, Edit2, Filter, Activity, Copy, Check } from "lucide-react";
+import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink, Edit2, Filter, Activity, Copy, Check, Calendar, Tag, Briefcase, Clock } from "lucide-react";
 
 type Tab = "Websites" | "Servers" | "Tasks" | "Notes";
 
@@ -22,6 +22,16 @@ interface ServerData {
     description: string;
 }
 
+interface TaskData {
+    id?: number;
+    task_name: string;
+    category: string;
+    client: string;
+    status: string;
+    date_created: string;
+    date_completed: string;
+}
+
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("Websites");
 
@@ -40,12 +50,22 @@ export default function Dashboard() {
     const [serverClientFilter, setServerClientFilter] = useState("All");
     const [serverProviderFilter, setServerProviderFilter] = useState("All");
 
+    // Task States
+    const [tasks, setTasks] = useState<TaskData[]>([]);
+    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<TaskData | null>(null);
+    const [newTask, setNewTask] = useState<TaskData>({ task_name: "", category: "General", client: "Internal", status: "Pending", date_created: "", date_completed: "" });
+    const [taskCategoryFilter, setTaskCategoryFilter] = useState("All");
+    const [taskClientFilter, setTaskClientFilter] = useState("All");
+    const [taskStatusFilter, setTaskStatusFilter] = useState("All");
+
     const [loading, setLoading] = useState(false);
     const [copiedIp, setCopiedIp] = useState<number | null>(null);
 
     useEffect(() => {
         if (activeTab === "Websites") fetchWebsites();
         if (activeTab === "Servers") fetchServers();
+        if (activeTab === "Tasks") fetchTasks();
     }, [activeTab]);
 
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -65,6 +85,14 @@ export default function Dashboard() {
             const data = await res.json();
             setServers(data);
         } catch (e) { console.error("Failed to fetch servers:", e); }
+    };
+
+    const fetchTasks = async () => {
+        try {
+            const res = await fetch(`${apiBase}/tasks`);
+            const data = await res.json();
+            setTasks(data);
+        } catch (e) { console.error("Failed to fetch tasks:", e); }
     };
 
     const saveWebsite = async () => {
@@ -105,6 +133,34 @@ export default function Dashboard() {
         } catch (e) { console.error("Failed to save server:", e); } finally { setLoading(false); }
     };
 
+    const saveTask = async () => {
+        const taskToSave = editingTask || newTask;
+        if (!taskToSave.task_name) return;
+        setLoading(true);
+        try {
+            const method = editingTask ? "PUT" : "POST";
+            const url = editingTask ? `${apiBase}/tasks/${editingTask.id}` : `${apiBase}/tasks`;
+
+            const payload = { ...taskToSave };
+            if (method === "POST" && !payload.date_created) {
+                payload.date_created = new Date().toISOString().split('T')[0];
+            }
+            if (payload.status === "Completed" && !payload.date_completed) {
+                payload.date_completed = new Date().toISOString().split('T')[0];
+            }
+
+            await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            setIsTaskModalOpen(false);
+            setEditingTask(null);
+            setNewTask({ task_name: "", category: "General", client: "Internal", status: "Pending", date_created: "", date_completed: "" });
+            fetchTasks();
+        } catch (e) { console.error("Failed to save task:", e); } finally { setLoading(false); }
+    };
+
     // --- Helpers ---
     const copyToClipboard = (text: string, id: number) => {
         navigator.clipboard.writeText(text);
@@ -117,11 +173,20 @@ export default function Dashboard() {
 
     const serverClients = ["All", ...Array.from(new Set(servers.map(s => s.client || "Self")))];
     const serverProviders = ["All", ...Array.from(new Set(servers.map(s => s.provider || "Unknown")))];
-
     const filteredServers = servers.filter(s => {
         const clientMatch = serverClientFilter === "All" || s.client === serverClientFilter;
         const providerMatch = serverProviderFilter === "All" || s.provider === serverProviderFilter;
         return clientMatch && providerMatch;
+    });
+
+    const taskCategories = ["All", ...Array.from(new Set(tasks.map(t => t.category || "General")))];
+    const taskClients = ["All", ...Array.from(new Set(tasks.map(t => t.client || "Internal")))];
+    const taskStatuses = ["All", "Pending", "In Progress", "Completed", "On Hold"];
+    const filteredTasks = tasks.filter(t => {
+        const categoryMatch = taskCategoryFilter === "All" || t.category === taskCategoryFilter;
+        const clientMatch = taskClientFilter === "All" || t.client === taskClientFilter;
+        const statusMatch = taskStatusFilter === "All" || t.status === taskStatusFilter;
+        return categoryMatch && clientMatch && statusMatch;
     });
 
     const tabs: { id: Tab; icon: any }[] = [
@@ -130,6 +195,15 @@ export default function Dashboard() {
         { id: "Tasks", icon: CheckSquare },
         { id: "Notes", icon: FileText },
     ];
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case "Completed": return "text-emerald-400 bg-emerald-500/10";
+            case "In Progress": return "text-amber-400 bg-amber-500/10";
+            case "On Hold": return "text-red-400 bg-red-500/10";
+            default: return "text-zinc-400 bg-zinc-800";
+        }
+    };
 
     return (
         <div className="flex flex-col gap-6">
@@ -145,6 +219,10 @@ export default function Dashboard() {
                             setEditingServer(null);
                             setNewServer({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" });
                             setIsServerModalOpen(true);
+                        } else if (activeTab === "Tasks") {
+                            setEditingTask(null);
+                            setNewTask({ task_name: "", category: "General", client: "Internal", status: "Pending", date_created: "", date_completed: "" });
+                            setIsTaskModalOpen(true);
                         }
                     }}
                     className="group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95 cursor-pointer font-medium"
@@ -193,6 +271,28 @@ export default function Dashboard() {
                             <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Provider:</span>
                             {serverProviders.map(cat => (
                                 <button key={cat} onClick={() => setServerProviderFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${serverProviderFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                    </>
+                )}
+                {activeTab === "Tasks" && tasks.length > 0 && (
+                    <>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Status:</span>
+                            {taskStatuses.map(cat => (
+                                <button key={cat} onClick={() => setTaskStatusFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskStatusFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Category:</span>
+                            {taskCategories.map(cat => (
+                                <button key={cat} onClick={() => setTaskCategoryFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskCategoryFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Client:</span>
+                            {taskClients.map(cat => (
+                                <button key={cat} onClick={() => setTaskClientFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskClientFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
                             ))}
                         </div>
                     </>
@@ -265,7 +365,67 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {(activeTab === "Tasks" || activeTab === "Notes") && (
+                {activeTab === "Tasks" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredTasks.map((task, i) => (
+                            <div key={i} className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
+                                <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500">
+                                        <CheckSquare size={24} />
+                                    </div>
+                                    <div className="flex gap-2 relative z-10">
+                                        <button onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getStatusColor(task.status)}`}>
+                                        {task.status}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                        {task.client}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                        {task.category}
+                                    </span>
+                                </div>
+
+                                <h3 className="text-lg font-bold text-zinc-100 mb-4 group-hover:text-emerald-400 transition-colors duration-300">{task.task_name}</h3>
+
+                                <div className="mt-auto space-y-3">
+                                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                        <Calendar size={14} className="text-zinc-600" />
+                                        <span>Created: {task.date_created}</span>
+                                    </div>
+                                    {task.date_completed && (
+                                        <div className="flex items-center gap-2 text-xs text-emerald-500/70 font-medium">
+                                            <Clock size={14} />
+                                            <span>Completed: {task.date_completed}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 border-t border-zinc-800/50 flex items-center justify-between">
+                                        <div className="flex -space-x-2">
+                                            <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-zinc-500">A</div>
+                                            <div className="w-6 h-6 rounded-full bg-emerald-900 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-emerald-400">P</div>
+                                        </div>
+                                        <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest group-hover:text-emerald-500/50 transition-colors">Details</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {filteredTasks.length === 0 && (
+                            <div className="col-span-full py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-800/30 rounded-3xl bg-zinc-900/10">
+                                <div className="mb-6 opacity-10 flex justify-center"><CheckSquare size={80} /></div>
+                                <h4 className="text-xl font-medium text-zinc-300 mb-2">No tasks found</h4>
+                                <p className="text-zinc-500">Plan your day by adding a new task!</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === "Notes" && (
                     <div className="bg-zinc-900/20 border border-zinc-800/50 rounded-3xl p-12 min-h-[400px] flex flex-col items-center justify-center text-center backdrop-blur-sm">
                         <div className="w-20 h-20 bg-zinc-800/50 rounded-2xl flex items-center justify-center mb-6 text-zinc-600 border border-zinc-700/50 shadow-xl">
                             {(() => { const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon; return ActiveIcon ? <ActiveIcon size={36} /> : null; })()}
@@ -286,14 +446,8 @@ export default function Dashboard() {
                         </div>
                         <div className="p-8 space-y-6">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2 group">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Name</label>
-                                    <input type="text" value={editingWebsite ? editingWebsite.name : newWebsite.name} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, name: e.target.value }) : setNewWebsite({ ...newWebsite, name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" />
-                                </div>
-                                <div className="space-y-2 group">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Category</label>
-                                    <input type="text" value={editingWebsite ? editingWebsite.category : newWebsite.category} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, category: e.target.value }) : setNewWebsite({ ...newWebsite, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" />
-                                </div>
+                                <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Name</label><input type="text" value={editingWebsite ? editingWebsite.name : newWebsite.name} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, name: e.target.value }) : setNewWebsite({ ...newWebsite, name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                                <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Category</label><input type="text" value={editingWebsite ? editingWebsite.category : newWebsite.category} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, category: e.target.value }) : setNewWebsite({ ...newWebsite, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
                             </div>
                             <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Link</label><input type="text" value={editingWebsite ? editingWebsite.link : newWebsite.link} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, link: e.target.value }) : setNewWebsite({ ...newWebsite, link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
                             <div className="grid grid-cols-3 gap-4">
@@ -315,32 +469,54 @@ export default function Dashboard() {
                             <button onClick={() => setIsServerModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"><X size={20} /></button>
                         </div>
                         <div className="p-8 grid grid-cols-2 gap-6">
+                            <div className="space-y-2 group col-span-2"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Server Name</label><input type="text" value={editingServer ? editingServer.server_name : newServer.server_name} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_name: e.target.value }) : setNewServer({ ...newServer, server_name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider</label><input type="text" value={editingServer ? editingServer.provider : newServer.provider} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider: e.target.value }) : setNewServer({ ...newServer, provider: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider Link</label><input type="text" value={editingServer ? editingServer.provider_link : newServer.provider_link} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider_link: e.target.value }) : setNewServer({ ...newServer, provider_link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Client</label><input type="text" value={editingServer ? editingServer.client : newServer.client} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, client: e.target.value }) : setNewServer({ ...newServer, client: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">IP Address</label><input type="text" value={editingServer ? editingServer.server_ip : newServer.server_ip} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_ip: e.target.value }) : setNewServer({ ...newServer, server_ip: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group col-span-2"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Description</label><textarea value={editingServer ? editingServer.description : newServer.description} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, description: e.target.value }) : setNewServer({ ...newServer, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none h-24 resize-none" /></div>
+                        </div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveServer} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer">{loading ? "Saving..." : (editingServer ? "Update Server" : "Create Server")}</button></div>
+                    </div>
+                </div>
+            )}
+
+            {/* Task Modal */}
+            {isTaskModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                        <div className="flex justify-between items-center p-6 border-b border-zinc-800/50 bg-zinc-900/50">
+                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">{editingTask ? <Edit2 size={20} /> : <Plus size={20} />}</div><h3 className="text-xl font-bold text-white">{editingTask ? "Edit Task" : "New Task"}</h3></div>
+                            <button onClick={() => setIsTaskModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"><X size={20} /></button>
+                        </div>
+                        <div className="p-8 grid grid-cols-2 gap-6">
                             <div className="space-y-2 group col-span-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Server Name</label>
-                                <input type="text" value={editingServer ? editingServer.server_name : newServer.server_name} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_name: e.target.value }) : setNewServer({ ...newServer, server_name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. Production API" />
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Task Description</label>
+                                <input type="text" value={editingTask ? editingTask.task_name : newTask.task_name} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, task_name: e.target.value }) : setNewTask({ ...newTask, task_name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="What needs to be done?" />
                             </div>
                             <div className="space-y-2 group">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider</label>
-                                <input type="text" value={editingServer ? editingServer.provider : newServer.provider} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider: e.target.value }) : setNewServer({ ...newServer, provider: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. DigitalOcean" />
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1"><Tag size={10} className="inline mr-1" /> Category</label>
+                                <input type="text" value={editingTask ? editingTask.category : newTask.category} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, category: e.target.value }) : setNewTask({ ...newTask, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. Bug, Feature" />
                             </div>
                             <div className="space-y-2 group">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider Link</label>
-                                <input type="text" value={editingServer ? editingServer.provider_link : newServer.provider_link} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider_link: e.target.value }) : setNewServer({ ...newServer, provider_link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="https://cloud.do.com" />
-                            </div>
-                            <div className="space-y-2 group">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Client / Project</label>
-                                <input type="text" value={editingServer ? editingServer.client : newServer.client} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, client: e.target.value }) : setNewServer({ ...newServer, client: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. ACME Corp" />
-                            </div>
-                            <div className="space-y-2 group">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Server IP</label>
-                                <input type="text" value={editingServer ? editingServer.server_ip : newServer.server_ip} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_ip: e.target.value }) : setNewServer({ ...newServer, server_ip: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="192.168.1.1" />
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1"><Briefcase size={10} className="inline mr-1" /> Client</label>
+                                <input type="text" value={editingTask ? editingTask.client : newTask.client} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, client: e.target.value }) : setNewTask({ ...newTask, client: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. Internal" />
                             </div>
                             <div className="space-y-2 group col-span-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Notes / Description</label>
-                                <textarea value={editingServer ? editingServer.description : newServer.description} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, description: e.target.value }) : setNewServer({ ...newServer, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none h-24 resize-none" placeholder="Server details..." />
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1"><Activity size={10} className="inline mr-1" /> Current Status</label>
+                                <select
+                                    value={editingTask ? editingTask.status : newTask.status}
+                                    onChange={(e) => editingTask ? setEditingTask({ ...editingTask, status: e.target.value }) : setNewTask({ ...newTask, status: e.target.value })}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="On Hold">On Hold</option>
+                                </select>
                             </div>
                         </div>
-                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveServer} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer text-center">{loading ? "Saving..." : (editingServer ? "Update Server Entry" : "Register New Server")}</button></div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveTask} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer text-center">{loading ? "Updating..." : (editingTask ? "Save Task Changes" : "Create Task")}</button></div>
                     </div>
                 </div>
             )}

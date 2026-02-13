@@ -27,6 +27,17 @@ def init_db():
             description TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_name TEXT NOT NULL,
+            category TEXT,
+            client TEXT,
+            status TEXT DEFAULT 'Pending',
+            date_created TEXT,
+            date_completed TEXT
+        )
+    ''')
     # Check if category column exists for existing DBs
     cursor.execute("PRAGMA table_info(websites)")
     columns = [column[1] for column in cursor.fetchall()]

@@ -64,6 +64,14 @@ class Server(BaseModel):
     server_ip: Optional[str] = None
     description: Optional[str] = None
 
+class Task(BaseModel):
+    task_name: str
+    category: Optional[str] = "General"
+    client: Optional[str] = "Internal"
+    status: Optional[str] = "Pending"
+    date_created: Optional[str] = None
+    date_completed: Optional[str] = None
+
 
 # --- Endpoints ---
 @app.get("/health")
@@ -151,6 +159,35 @@ async def update_server(server_id: int, server: Server):
     conn.execute(
         "UPDATE servers SET server_name = ?, provider = ?, provider_link = ?, client = ?, server_ip = ?, description = ? WHERE id = ?",
         (server.server_name, server.provider, server.provider_link, server.client, server.server_ip, server.description, server_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/tasks")
+async def list_tasks():
+    conn = get_db_connection()
+    tasks = conn.execute("SELECT * FROM tasks").fetchall()
+    conn.close()
+    return [dict(t) for t in tasks]
+
+@app.post("/tasks")
+async def add_task(task: Task):
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO tasks (task_name, category, client, status, date_created, date_completed) VALUES (?, ?, ?, ?, ?, ?)",
+        (task.task_name, task.category, task.client, task.status, task.date_created, task.date_completed)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.put("/tasks/{task_id}")
+async def update_task(task_id: int, task: Task):
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE tasks SET task_name = ?, category = ?, client = ?, status = ?, date_created = ?, date_completed = ? WHERE id = ?",
+        (task.task_name, task.category, task.client, task.status, task.date_created, task.date_completed, task_id)
     )
     conn.commit()
     conn.close()
