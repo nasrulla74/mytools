@@ -39,7 +39,10 @@ export default function Dashboard() {
             {/* Tab Content Placeholder */}
             <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-8 min-h-[400px] flex flex-col items-center justify-center text-center">
                 <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mb-4 text-zinc-600">
-                    {tabs.find(t => t.id === activeTab)?.icon({ size: 32 })}
+                    {(() => {
+                        const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon;
+                        return ActiveIcon ? <ActiveIcon size={32} /> : null;
+                    })()}
                 </div>
                 <h3 className="text-lg font-medium text-zinc-300 mb-2">{activeTab}</h3>
                 <p className="text-zinc-500 max-w-sm">
