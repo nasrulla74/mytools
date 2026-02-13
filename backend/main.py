@@ -54,6 +54,7 @@ class Website(BaseModel):
     link: str
     icon: Optional[str] = None
     description: Optional[str] = None
+    category: Optional[str] = "General"
 
 
 # --- Endpoints ---
@@ -100,8 +101,19 @@ async def list_websites():
 async def add_website(website: Website):
     conn = get_db_connection()
     conn.execute(
-        "INSERT INTO websites (name, link, icon, description) VALUES (?, ?, ?, ?)",
-        (website.name, website.link, website.icon, website.description)
+        "INSERT INTO websites (name, link, icon, description, category) VALUES (?, ?, ?, ?, ?)",
+        (website.name, website.link, website.icon, website.description, website.category)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.put("/websites/{website_id}")
+async def update_website(website_id: int, website: Website):
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE websites SET name = ?, link = ?, icon = ?, description = ?, category = ? WHERE id = ?",
+        (website.name, website.link, website.icon, website.description, website.category, website_id)
     )
     conn.commit()
     conn.close()

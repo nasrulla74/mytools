@@ -12,9 +12,16 @@ def init_db():
             name TEXT NOT NULL,
             link TEXT NOT NULL,
             icon TEXT,
-            description TEXT
+            description TEXT,
+            category TEXT DEFAULT 'General'
         )
     ''')
+    # Check if category column exists for existing DBs
+    cursor.execute("PRAGMA table_info(websites)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'category' not in columns:
+        cursor.execute("ALTER TABLE websites ADD COLUMN category TEXT DEFAULT 'General'")
+    
     conn.commit()
     conn.close()
 
