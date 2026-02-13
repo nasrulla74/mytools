@@ -1,0 +1,17 @@
+services:
+  mytools-app:
+    build: .
+    container_name: mytools-app
+    restart: always
+    ports:
+      - "8080:8000" # Maps server port 8080 to container port 8000
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

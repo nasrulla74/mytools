@@ -20,7 +20,8 @@ export default function AiChat() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/ai/chat", {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
