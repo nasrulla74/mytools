@@ -14,23 +14,27 @@ class AiService:
         provider: str = "anthropic",
         model: Optional[str] = None,
         system_prompt: str = "You are a helpful assistant.",
+        api_key: Optional[str] = None,
     ) -> dict:
         try:
+            # Use provided key or fallback to env var
+            key = api_key or getattr(self, f"{provider}_key", "")
+            
             if provider == "anthropic":
-                return await self._anthropic_chat(prompt, model, system_prompt)
+                return await self._anthropic_chat(prompt, model, system_prompt, key)
             elif provider == "openai":
-                return await self._openai_chat(prompt, model, system_prompt)
+                return await self._openai_chat(prompt, model, system_prompt, key)
             elif provider == "deepseek":
-                return await self._deepseek_chat(prompt, model, system_prompt)
+                return await self._deepseek_chat(prompt, model, system_prompt, key)
             else:
                 return {"error": f"Unknown provider: {provider}"}
         except Exception as e:
             return {"error": str(e)}
 
-    async def _anthropic_chat(self, prompt, model, system_prompt):
+    async def _anthropic_chat(self, prompt, model, system_prompt, api_key):
         from anthropic import Anthropic
 
-        client = Anthropic(api_key=self.anthropic_key)
+        client = Anthropic(api_key=api_key)
         message = client.messages.create(
             model=model or "claude-sonnet-4-20250514",
             max_tokens=2048,
@@ -46,10 +50,10 @@ class AiService:
             },
         }
 
-    async def _openai_chat(self, prompt, model, system_prompt):
+    async def _openai_chat(self, prompt, model, system_prompt, api_key):
         from openai import OpenAI
 
-        client = OpenAI(api_key=self.openai_key)
+        client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
             model=model or "gpt-4o",
             messages=[
@@ -66,12 +70,12 @@ class AiService:
             },
         }
 
-    async def _deepseek_chat(self, prompt, model, system_prompt):
+    async def _deepseek_chat(self, prompt, model, system_prompt, api_key):
         from openai import OpenAI
 
         # DeepSeek uses OpenAI-compatible API
         client = OpenAI(
-            api_key=self.deepseek_key,
+            api_key=api_key,
             base_url="https://api.deepseek.com"
         )
         response = client.chat.completions.create(

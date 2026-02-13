@@ -11,6 +11,10 @@ export default function AiChat() {
 
   const send = async () => {
     if (!input.trim() || loading) return;
+
+    // Get the key for the current provider
+    const apiKey = localStorage.getItem(`${provider}_api_key`);
+
     const userMsg: Message = { role: "user", content: input };
     setMessages((m) => [...m, userMsg]);
     setInput("");
@@ -19,7 +23,11 @@ export default function AiChat() {
       const res = await fetch("http://localhost:8000/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input, provider }),
+        body: JSON.stringify({
+          prompt: input,
+          provider,
+          api_key: apiKey
+        }),
       });
       const data = await res.json();
       setMessages((m) => [...m, { role: "assistant", content: data.response || data.error }]);

@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function SettingsPage() {
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
   const [deepseekKey, setDeepseekKey] = useState("");
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setAnthropicKey(localStorage.getItem("anthropic_api_key") || "");
+    setOpenaiKey(localStorage.getItem("openai_api_key") || "");
+    setDeepseekKey(localStorage.getItem("deepseek_api_key") || "");
+  }, []);
+
+  const save = () => {
+    localStorage.setItem("anthropic_api_key", anthropicKey);
+    localStorage.setItem("openai_api_key", openaiKey);
+    localStorage.setItem("deepseek_api_key", deepseekKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   const inputClass = "w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500";
 
@@ -25,7 +39,7 @@ export default function SettingsPage() {
           <input type="password" value={deepseekKey} onChange={(e) => setDeepseekKey(e.target.value)} className={inputClass} placeholder="sk-..." />
         </div>
         <button
-          onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
+          onClick={save}
           className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm w-fit cursor-pointer"
         >
           {saved ? "✓ Saved!" : "Save Settings"}

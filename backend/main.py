@@ -43,6 +43,7 @@ class AiChatRequest(BaseModel):
     provider: str = "anthropic"
     model: Optional[str] = None
     system_prompt: str = "You are a helpful assistant."
+    api_key: Optional[str] = None
 
 
 # --- Endpoints ---
@@ -75,6 +76,7 @@ async def ai_chat(req: AiChatRequest):
         provider=req.provider,
         model=req.model,
         system_prompt=req.system_prompt,
+        api_key=req.api_key,
     )
 
 
