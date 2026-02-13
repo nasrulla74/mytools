@@ -3,15 +3,17 @@ services:
     build: .
     container_name: mytools-app
     restart: always
-    ports:
-      - "8080:8000" # Maps server port 8080 to container port 8000
+    expose:
+      - "8000"
     environment:
+      - VITE_API_URL=https://mytools.appeul.com
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
     networks:
-      - app-network
+      - web-proxy
 
 networks:
-  app-network:
-    driver: bridge
+  web-proxy:
+    external: true
+
