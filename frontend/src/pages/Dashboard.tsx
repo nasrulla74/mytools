@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink, Edit2, Filter, Activity, Copy, Check, Calendar, Tag, Briefcase, Clock, Image as ImageIcon, Link as LinkIcon, Hash } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink, Edit2, Filter, Activity, Copy, Check, Calendar, Tag, Briefcase, Clock } from "lucide-react";
 
 type Tab = "Websites" | "Servers" | "Tasks" | "Notes";
 
@@ -32,15 +32,6 @@ interface TaskData {
     date_completed: string;
 }
 
-interface NoteData {
-    id?: number;
-    content: string;
-    tags: string;
-    ref_link: string;
-    images: string; // JSON string of base64
-    date_created: string;
-}
-
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("Websites");
 
@@ -68,13 +59,6 @@ export default function Dashboard() {
     const [taskClientFilter, setTaskClientFilter] = useState("All");
     const [taskStatusFilter, setTaskStatusFilter] = useState("All");
 
-    // Note States
-    const [notes, setNotes] = useState<NoteData[]>([]);
-    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-    const [editingNote, setEditingNote] = useState<NoteData | null>(null);
-    const [newNote, setNewNote] = useState<NoteData>({ content: "", tags: "", ref_link: "", images: "[]", date_created: "" });
-    const [noteTagFilter, setNoteTagFilter] = useState("All");
-
     const [loading, setLoading] = useState(false);
     const [copiedIp, setCopiedIp] = useState<number | null>(null);
 
@@ -82,7 +66,6 @@ export default function Dashboard() {
         if (activeTab === "Websites") fetchWebsites();
         if (activeTab === "Servers") fetchServers();
         if (activeTab === "Tasks") fetchTasks();
-        if (activeTab === "Notes") fetchNotes();
     }, [activeTab]);
 
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -112,14 +95,6 @@ export default function Dashboard() {
         } catch (e) { console.error("Failed to fetch tasks:", e); }
     };
 
-    const fetchNotes = async () => {
-        try {
-            const res = await fetch(`${apiBase}/notes`);
-            const data = await res.json();
-            setNotes(data);
-        } catch (e) { console.error("Failed to fetch notes:", e); }
-    };
-
     const saveWebsite = async () => {
         const websiteToSave = editingWebsite || newWebsite;
         if (!websiteToSave.name || !websiteToSave.link) return;
@@ -127,7 +102,11 @@ export default function Dashboard() {
         try {
             const method = editingWebsite ? "PUT" : "POST";
             const url = editingWebsite ? `${apiBase}/websites/${editingWebsite.id}` : `${apiBase}/websites`;
-            await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(websiteToSave) });
+            await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(websiteToSave),
+            });
             setIsWebModalOpen(false);
             setEditingWebsite(null);
             setNewWebsite({ name: "", link: "", icon: "", description: "", category: "General" });
@@ -142,7 +121,11 @@ export default function Dashboard() {
         try {
             const method = editingServer ? "PUT" : "POST";
             const url = editingServer ? `${apiBase}/servers/${editingServer.id}` : `${apiBase}/servers`;
-            await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(serverToSave) });
+            await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(serverToSave),
+            });
             setIsServerModalOpen(false);
             setEditingServer(null);
             setNewServer({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" });
@@ -157,10 +140,20 @@ export default function Dashboard() {
         try {
             const method = editingTask ? "PUT" : "POST";
             const url = editingTask ? `${apiBase}/tasks/${editingTask.id}` : `${apiBase}/tasks`;
+
             const payload = { ...taskToSave };
-            if (method === "POST" && !payload.date_created) payload.date_created = new Date().toISOString().split('T')[0];
-            if (payload.status === "Completed" && !payload.date_completed) payload.date_completed = new Date().toISOString().split('T')[0];
-            await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            if (method === "POST" && !payload.date_created) {
+                payload.date_created = new Date().toISOString().split('T')[0];
+            }
+            if (payload.status === "Completed" && !payload.date_completed) {
+                payload.date_completed = new Date().toISOString().split('T')[0];
+            }
+
+            await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
             setIsTaskModalOpen(false);
             setEditingTask(null);
             setNewTask({ task_name: "", category: "General", client: "Internal", status: "Pending", date_created: "", date_completed: "" });
@@ -168,55 +161,11 @@ export default function Dashboard() {
         } catch (e) { console.error("Failed to save task:", e); } finally { setLoading(false); }
     };
 
-    const saveNote = async () => {
-        const noteToSave = editingNote || newNote;
-        if (!noteToSave.content) return;
-        setLoading(true);
-        try {
-            const method = editingNote ? "PUT" : "POST";
-            const url = editingNote ? `${apiBase}/notes/${editingNote.id}` : `${apiBase}/notes`;
-            const payload = { ...noteToSave };
-            if (method === "POST" && !payload.date_created) payload.date_created = new Date().toISOString().split('T')[0];
-            await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-            setIsNoteModalOpen(false);
-            setEditingNote(null);
-            setNewNote({ content: "", tags: "", ref_link: "", images: "[]", date_created: "" });
-            fetchNotes();
-        } catch (e) { console.error("Failed to save note:", e); } finally { setLoading(false); }
-    };
-
     // --- Helpers ---
     const copyToClipboard = (text: string, id: number) => {
         navigator.clipboard.writeText(text);
         setCopiedIp(id);
         setTimeout(() => setCopiedIp(null), 2000);
-    };
-
-    const handleNotePaste = (e: React.ClipboardEvent) => {
-        const items = e.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf("image") !== -1) {
-                const file = items[i].getAsFile();
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const base64 = event.target?.result as string;
-                        const currentImages = JSON.parse(editingNote ? editingNote.images : newNote.images);
-                        const updatedImages = JSON.stringify([...currentImages, base64]);
-                        if (editingNote) setEditingNote({ ...editingNote, images: updatedImages });
-                        else setNewNote({ ...newNote, images: updatedImages });
-                    };
-                    reader.readAsDataURL(file);
-                }
-            }
-        }
-    };
-
-    const removeImage = (index: number) => {
-        const currentImages = JSON.parse(editingNote ? editingNote.images : newNote.images);
-        const updatedImages = JSON.stringify(currentImages.filter((_: any, i: number) => i !== index));
-        if (editingNote) setEditingNote({ ...editingNote, images: updatedImages });
-        else setNewNote({ ...newNote, images: updatedImages });
     };
 
     const webCategories = ["All", ...Array.from(new Set(websites.map(s => s.category || "General")))];
@@ -240,12 +189,6 @@ export default function Dashboard() {
         return categoryMatch && clientMatch && statusMatch;
     });
 
-    const allNoteTags = notes.flatMap(n => (n.tags || "").split(",").map(t => t.trim())).filter(t => t !== "");
-    const noteTags = ["All", ...Array.from(new Set(allNoteTags))];
-    const filteredNotes = noteTagFilter === "All"
-        ? notes
-        : notes.filter(n => (n.tags || "").split(",").map(t => t.trim()).includes(noteTagFilter));
-
     const tabs: { id: Tab; icon: any }[] = [
         { id: "Websites", icon: Globe },
         { id: "Servers", icon: Server },
@@ -268,10 +211,19 @@ export default function Dashboard() {
                 <h2 className="text-2xl font-bold text-white">Dashboard</h2>
                 <button
                     onClick={() => {
-                        if (activeTab === "Websites") { setEditingWebsite(null); setNewWebsite({ name: "", link: "", icon: "", description: "", category: "General" }); setIsWebModalOpen(true); }
-                        else if (activeTab === "Servers") { setEditingServer(null); setNewServer({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" }); setIsServerModalOpen(true); }
-                        else if (activeTab === "Tasks") { setEditingTask(null); setNewTask({ task_name: "", category: "General", client: "Internal", status: "Pending", date_created: "", date_completed: "" }); setIsTaskModalOpen(true); }
-                        else if (activeTab === "Notes") { setEditingNote(null); setNewNote({ content: "", tags: "", ref_link: "", images: "[]", date_created: "" }); setIsNoteModalOpen(true); }
+                        if (activeTab === "Websites") {
+                            setEditingWebsite(null);
+                            setNewWebsite({ name: "", link: "", icon: "", description: "", category: "General" });
+                            setIsWebModalOpen(true);
+                        } else if (activeTab === "Servers") {
+                            setEditingServer(null);
+                            setNewServer({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" });
+                            setIsServerModalOpen(true);
+                        } else if (activeTab === "Tasks") {
+                            setEditingTask(null);
+                            setNewTask({ task_name: "", category: "General", client: "Internal", status: "Pending", date_created: "", date_completed: "" });
+                            setIsTaskModalOpen(true);
+                        }
                     }}
                     className="group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95 cursor-pointer font-medium"
                 >
@@ -315,23 +267,35 @@ export default function Dashboard() {
                                 <button key={cat} onClick={() => setServerClientFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${serverClientFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
                             ))}
                         </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Provider:</span>
+                            {serverProviders.map(cat => (
+                                <button key={cat} onClick={() => setServerProviderFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${serverProviderFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
                     </>
                 )}
                 {activeTab === "Tasks" && tasks.length > 0 && (
-                    <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Status:</span>
-                        {taskStatuses.map(cat => (
-                            <button key={cat} onClick={() => setTaskStatusFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskStatusFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
-                        ))}
-                    </div>
-                )}
-                {activeTab === "Notes" && notes.length > 0 && (
-                    <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                        <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Tag:</span>
-                        {noteTags.map(tag => (
-                            <button key={tag} onClick={() => setNoteTagFilter(tag)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${noteTagFilter === tag ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{tag}</button>
-                        ))}
-                    </div>
+                    <>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Status:</span>
+                            {taskStatuses.map(cat => (
+                                <button key={cat} onClick={() => setTaskStatusFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskStatusFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Category:</span>
+                            {taskCategories.map(cat => (
+                                <button key={cat} onClick={() => setTaskCategoryFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskCategoryFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Client:</span>
+                            {taskClients.map(cat => (
+                                <button key={cat} onClick={() => setTaskClientFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${taskClientFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -368,7 +332,9 @@ export default function Dashboard() {
                             <div key={i} className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
                                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500"><Activity size={24} /></div>
+                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500">
+                                        <Activity size={24} />
+                                    </div>
                                     <div className="flex gap-2 relative z-10">
                                         <button onClick={() => { setEditingServer(server); setIsServerModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button>
                                         {server.provider_link && <a href={server.provider_link.startsWith('http') ? server.provider_link : `https://${server.provider_link}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><ExternalLink size={14} /></a>}
@@ -379,12 +345,21 @@ export default function Dashboard() {
                                     <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">{server.provider || "Cloud"}</span>
                                 </div>
                                 <h3 className="text-lg font-bold text-zinc-100 mb-1 group-hover:text-emerald-400 transition-colors duration-300">{server.server_name}</h3>
-                                <div onClick={() => server.server_ip && copyToClipboard(server.server_ip, server.id!)} className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800 px-3 py-2 rounded-xl mt-2 mb-4 cursor-pointer hover:border-emerald-500/30 group/ip transition-all">
+
+                                <div
+                                    onClick={() => server.server_ip && copyToClipboard(server.server_ip, server.id!)}
+                                    className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800 px-3 py-2 rounded-xl mt-2 mb-4 cursor-pointer hover:border-emerald-500/30 group/ip transition-all"
+                                >
                                     <code className="text-xs text-zinc-400 font-mono group-hover/ip:text-emerald-400">{server.server_ip || "0.0.0.0"}</code>
                                     {copiedIp === server.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-zinc-600 group-hover/ip:text-emerald-500 opacity-50" />}
                                 </div>
+
                                 <p className="text-sm text-zinc-500 line-clamp-3 flex-1 leading-relaxed mb-4">{server.description || "No description provided."}</p>
-                                <div className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center gap-2 text-[10px] uppercase font-bold text-zinc-600"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>Online · Ready</div>
+
+                                <div className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center gap-2 text-[10px] uppercase font-bold text-zinc-600">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    Online · {server.server_ip ? 'Ready' : 'Pending'}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -396,64 +371,67 @@ export default function Dashboard() {
                             <div key={i} className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
                                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500"><CheckSquare size={24} /></div>
-                                    <div className="flex gap-2 relative z-10"><button onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button></div>
+                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500">
+                                        <CheckSquare size={24} />
+                                    </div>
+                                    <div className="flex gap-2 relative z-10">
+                                        <button onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button>
+                                    </div>
                                 </div>
+
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getStatusColor(task.status)}`}>{task.status}</span>
-                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{task.client}</span>
-                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{task.category}</span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getStatusColor(task.status)}`}>
+                                        {task.status}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                        {task.client}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                                        {task.category}
+                                    </span>
                                 </div>
+
                                 <h3 className="text-lg font-bold text-zinc-100 mb-4 group-hover:text-emerald-400 transition-colors duration-300">{task.task_name}</h3>
+
                                 <div className="mt-auto space-y-3">
-                                    <div className="flex items-center gap-2 text-xs text-zinc-500"><Calendar size={14} className="text-zinc-600" /><span>Created: {task.date_created}</span></div>
-                                    {task.date_completed && <div className="flex items-center gap-2 text-xs text-emerald-500/70 font-medium"><Clock size={14} /><span>Completed: {task.date_completed}</span></div>}
+                                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                        <Calendar size={14} className="text-zinc-600" />
+                                        <span>Created: {task.date_created}</span>
+                                    </div>
+                                    {task.date_completed && (
+                                        <div className="flex items-center gap-2 text-xs text-emerald-500/70 font-medium">
+                                            <Clock size={14} />
+                                            <span>Completed: {task.date_completed}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 border-t border-zinc-800/50 flex items-center justify-between">
+                                        <div className="flex -space-x-2">
+                                            <div className="w-6 h-6 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-zinc-500">A</div>
+                                            <div className="w-6 h-6 rounded-full bg-emerald-900 border-2 border-zinc-900 flex items-center justify-center text-[10px] text-emerald-400">P</div>
+                                        </div>
+                                        <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest group-hover:text-emerald-500/50 transition-colors">Details</div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
+                        {filteredTasks.length === 0 && (
+                            <div className="col-span-full py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-800/30 rounded-3xl bg-zinc-900/10">
+                                <div className="mb-6 opacity-10 flex justify-center"><CheckSquare size={80} /></div>
+                                <h4 className="text-xl font-medium text-zinc-300 mb-2">No tasks found</h4>
+                                <p className="text-zinc-500">Plan your day by adding a new task!</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {activeTab === "Notes" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredNotes.map((note, i) => (
-                            <div key={i} className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
-                                <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500"><FileText size={24} /></div>
-                                    <div className="flex gap-2 relative z-10">
-                                        <button onClick={() => { setEditingNote(note); setIsNoteModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button>
-                                        {note.ref_link && <a href={note.ref_link.startsWith('http') ? note.ref_link : `https://${note.ref_link}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><LinkIcon size={14} /></a>}
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    {(note.tags || "").split(",").filter(t => t.trim() !== "").map((tag, ti) => (
-                                        <span key={ti} className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-                                            <Hash size={8} /> {tag.trim()}
-                                        </span>
-                                    ))}
-                                </div>
-                                <p className="text-zinc-100 text-sm whitespace-pre-wrap flex-1 mb-4 line-clamp-6">{note.content}</p>
-                                {JSON.parse(note.images || "[]").length > 0 && (
-                                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                                        {JSON.parse(note.images).map((img: string, ii: number) => (
-                                            <img key={ii} src={img} className="h-16 w-16 object-cover rounded-lg border border-zinc-800 hover:scale-110 transition-transform cursor-pointer" onClick={() => window.open(img)} />
-                                        ))}
-                                    </div>
-                                )}
-                                <div className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center justify-between text-[10px] text-zinc-600 uppercase font-bold tracking-widest">
-                                    <div className="flex items-center gap-1"><Calendar size={10} /> {note.date_created}</div>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">Expand View</div>
-                                </div>
-                            </div>
-                        ))}
-                        {filteredNotes.length === 0 && (
-                            <div className="col-span-full py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-800/30 rounded-3xl bg-zinc-900/10">
-                                <div className="mb-6 opacity-10 flex justify-center"><FileText size={80} /></div>
-                                <h4 className="text-xl font-medium text-zinc-300 mb-2">No notes found</h4>
-                                <p className="text-zinc-500">Capture your thoughts by adding a new note!</p>
-                            </div>
-                        )}
+                    <div className="bg-zinc-900/20 border border-zinc-800/50 rounded-3xl p-12 min-h-[400px] flex flex-col items-center justify-center text-center backdrop-blur-sm">
+                        <div className="w-20 h-20 bg-zinc-800/50 rounded-2xl flex items-center justify-center mb-6 text-zinc-600 border border-zinc-700/50 shadow-xl">
+                            {(() => { const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon; return ActiveIcon ? <ActiveIcon size={36} /> : null; })()}
+                        </div>
+                        <h3 className="text-xl font-bold text-zinc-200 mb-3">{activeTab}</h3>
+                        <p className="text-zinc-500 max-w-sm leading-relaxed">This module is currently being optimized for the best experience. Stay tuned!</p>
                     </div>
                 )}
             </div>
@@ -468,137 +446,77 @@ export default function Dashboard() {
                         </div>
                         <div className="p-8 space-y-6">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Name</label><input type="text" value={editingWebsite ? editingWebsite.name : newWebsite.name} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, name: e.target.value }) : setNewWebsite({ ...newWebsite, name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 outline-none focus:border-emerald-500/50 transition-all" /></div>
-                                <div className="space-y-2"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Category</label><input type="text" value={editingWebsite ? editingWebsite.category : newWebsite.category} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, category: e.target.value }) : setNewWebsite({ ...newWebsite, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 outline-none focus:border-emerald-500/50 transition-all" /></div>
+                                <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Name</label><input type="text" value={editingWebsite ? editingWebsite.name : newWebsite.name} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, name: e.target.value }) : setNewWebsite({ ...newWebsite, name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                                <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Category</label><input type="text" value={editingWebsite ? editingWebsite.category : newWebsite.category} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, category: e.target.value }) : setNewWebsite({ ...newWebsite, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
                             </div>
-                            <div className="space-y-2"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Link</label><input type="text" value={editingWebsite ? editingWebsite.link : newWebsite.link} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, link: e.target.value }) : setNewWebsite({ ...newWebsite, link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 outline-none focus:border-emerald-500/50 transition-all" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Link</label><input type="text" value={editingWebsite ? editingWebsite.link : newWebsite.link} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, link: e.target.value }) : setNewWebsite({ ...newWebsite, link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="col-span-1 space-y-2"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Icon</label><input type="text" value={editingWebsite ? editingWebsite.icon : newWebsite.icon} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, icon: e.target.value }) : setNewWebsite({ ...newWebsite, icon: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-2xl text-center outline-none focus:border-emerald-500/50" /></div>
-                                <div className="col-span-2 space-y-2"><label className="text-xs font-bold text-zinc-500 uppercase ml-1">Description</label><input type="text" value={editingWebsite ? editingWebsite.description : newWebsite.description} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, description: e.target.value }) : setNewWebsite({ ...newWebsite, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 outline-none focus:border-emerald-500/50" /></div>
+                                <div className="col-span-1 space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Icon</label><input type="text" value={editingWebsite ? editingWebsite.icon : newWebsite.icon} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, icon: e.target.value }) : setNewWebsite({ ...newWebsite, icon: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                                <div className="col-span-2 space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Description</label><input type="text" value={editingWebsite ? editingWebsite.description : newWebsite.description} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, description: e.target.value }) : setNewWebsite({ ...newWebsite, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
                             </div>
                         </div>
-                        <div className="p-8 bg-zinc-950/30"><button onClick={saveWebsite} disabled={loading} className="w-full px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer">{loading ? "Saving..." : (editingWebsite ? "Update Website" : "Create Website")}</button></div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveWebsite} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer">{loading ? "Saving..." : (editingWebsite ? "Update Website" : "Create Website")}</button></div>
                     </div>
                 </div>
             )}
 
-            {/* Server Modal (Minimal for space, but logic exists) */}
+            {/* Server Modal */}
             {isServerModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="flex justify-between items-center p-6 border-b border-zinc-800/50">
-                            <h3 className="text-xl font-bold text-white">Server Management</h3>
-                            <button onClick={() => setIsServerModalOpen(false)} className="text-zinc-500 hover:text-white"><X size={20} /></button>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                        <div className="flex justify-between items-center p-6 border-b border-zinc-800/50 bg-zinc-900/50">
+                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">{editingServer ? <Edit2 size={20} /> : <Plus size={20} />}</div><h3 className="text-xl font-bold text-white">{editingServer ? "Edit Server" : "New Server"}</h3></div>
+                            <button onClick={() => setIsServerModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"><X size={20} /></button>
                         </div>
-                        <div className="p-8 grid grid-cols-2 gap-4">
-                            <input className="col-span-2 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" placeholder="Server Name" value={editingServer ? editingServer.server_name : newServer.server_name} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_name: e.target.value }) : setNewServer({ ...newServer, server_name: e.target.value })} />
-                            <input className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" placeholder="Provider" value={editingServer ? editingServer.provider : newServer.provider} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider: e.target.value }) : setNewServer({ ...newServer, provider: e.target.value })} />
-                            <input className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" placeholder="IP" value={editingServer ? editingServer.server_ip : newServer.server_ip} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_ip: e.target.value }) : setNewServer({ ...newServer, server_ip: e.target.value })} />
-                            <input className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" placeholder="Client" value={editingServer ? editingServer.client : newServer.client} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, client: e.target.value }) : setNewServer({ ...newServer, client: e.target.value })} />
-                            <input className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none" placeholder="Link" value={editingServer ? editingServer.provider_link : newServer.provider_link} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider_link: e.target.value }) : setNewServer({ ...newServer, provider_link: e.target.value })} />
-                            <textarea className="col-span-2 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none h-24" placeholder="Description" value={editingServer ? editingServer.description : newServer.description} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, description: e.target.value }) : setNewServer({ ...newServer, description: e.target.value })} />
+                        <div className="p-8 grid grid-cols-2 gap-6">
+                            <div className="space-y-2 group col-span-2"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Server Name</label><input type="text" value={editingServer ? editingServer.server_name : newServer.server_name} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_name: e.target.value }) : setNewServer({ ...newServer, server_name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider</label><input type="text" value={editingServer ? editingServer.provider : newServer.provider} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider: e.target.value }) : setNewServer({ ...newServer, provider: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider Link</label><input type="text" value={editingServer ? editingServer.provider_link : newServer.provider_link} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider_link: e.target.value }) : setNewServer({ ...newServer, provider_link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Client</label><input type="text" value={editingServer ? editingServer.client : newServer.client} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, client: e.target.value }) : setNewServer({ ...newServer, client: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">IP Address</label><input type="text" value={editingServer ? editingServer.server_ip : newServer.server_ip} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_ip: e.target.value }) : setNewServer({ ...newServer, server_ip: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="space-y-2 group col-span-2"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Description</label><textarea value={editingServer ? editingServer.description : newServer.description} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, description: e.target.value }) : setNewServer({ ...newServer, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none h-24 resize-none" /></div>
                         </div>
-                        <div className="p-8"><button onClick={saveServer} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/20">Save</button></div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveServer} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer">{loading ? "Saving..." : (editingServer ? "Update Server" : "Create Server")}</button></div>
                     </div>
                 </div>
             )}
 
-            {/* Task Modal (Minimal) */}
+            {/* Task Modal */}
             {isTaskModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="p-6 border-b border-zinc-800/50 flex justify-between"><h3 className="text-xl font-bold text-white">Task Management</h3><button onClick={() => setIsTaskModalOpen(false)}><X size={20} /></button></div>
-                        <div className="p-8 space-y-4">
-                            <input className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500" placeholder="Task Name" value={editingTask ? editingTask.task_name : newTask.task_name} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, task_name: e.target.value }) : setNewTask({ ...newTask, task_name: e.target.value })} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <input className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500" placeholder="Category" value={editingTask ? editingTask.category : newTask.category} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, category: e.target.value }) : setNewTask({ ...newTask, category: e.target.value })} />
-                                <input className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500" placeholder="Client" value={editingTask ? editingTask.client : newTask.client} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, client: e.target.value }) : setNewTask({ ...newTask, client: e.target.value })} />
-                            </div>
-                            <select className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500" value={editingTask ? editingTask.status : newTask.status} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, status: e.target.value }) : setNewTask({ ...newTask, status: e.target.value })}>
-                                <option value="Pending">Pending</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option><option value="On Hold">On Hold</option>
-                            </select>
-                        </div>
-                        <div className="p-8"><button onClick={saveTask} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-lg shadow-emerald-500/20">Save</button></div>
-                    </div>
-                </div>
-            )}
-
-            {/* Note Modal */}
-            {isNoteModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
                         <div className="flex justify-between items-center p-6 border-b border-zinc-800/50 bg-zinc-900/50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                                    {editingNote ? <Edit2 size={20} /> : <Plus size={20} />}
-                                </div>
-                                <h3 className="text-xl font-bold text-white">{editingNote ? "Edit Note" : "New Note"}</h3>
-                            </div>
-                            <button
-                                onClick={() => setIsNoteModalOpen(false)}
-                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
-                            >
-                                <X size={20} />
-                            </button>
+                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">{editingTask ? <Edit2 size={20} /> : <Plus size={20} />}</div><h3 className="text-xl font-bold text-white">{editingTask ? "Edit Task" : "New Task"}</h3></div>
+                            <button onClick={() => setIsTaskModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"><X size={20} /></button>
                         </div>
-                        <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Content (Paste images here)</label>
-                                <textarea
-                                    value={editingNote ? editingNote.content : newNote.content}
-                                    onChange={(e) => editingNote ? setEditingNote({ ...editingNote, content: e.target.value }) : setNewNote({ ...newNote, content: e.target.value })}
-                                    onPaste={handleNotePaste}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 outline-none focus:border-emerald-500/50 transition-all min-h-[150px] resize-none"
-                                    placeholder="Type your note here... You can paste images from clipboard!"
-                                />
+                        <div className="p-8 grid grid-cols-2 gap-6">
+                            <div className="space-y-2 group col-span-2">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Task Description</label>
+                                <input type="text" value={editingTask ? editingTask.task_name : newTask.task_name} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, task_name: e.target.value }) : setNewTask({ ...newTask, task_name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="What needs to be done?" />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Tags (comma separated)</label>
-                                    <input
-                                        type="text"
-                                        value={editingNote ? editingNote.tags : newNote.tags}
-                                        onChange={(e) => editingNote ? setEditingNote({ ...editingNote, tags: e.target.value }) : setNewNote({ ...newNote, tags: e.target.value })}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 outline-none focus:border-emerald-500/50 transition-all"
-                                        placeholder="e.g. Ideas, Work, Research"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Reference Link</label>
-                                    <input
-                                        type="text"
-                                        value={editingNote ? editingNote.ref_link : newNote.ref_link}
-                                        onChange={(e) => editingNote ? setEditingNote({ ...editingNote, ref_link: e.target.value }) : setNewNote({ ...newNote, ref_link: e.target.value })}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 outline-none focus:border-emerald-500/50 transition-all"
-                                        placeholder="https://example.com"
-                                    />
-                                </div>
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1"><Tag size={10} className="inline mr-1" /> Category</label>
+                                <input type="text" value={editingTask ? editingTask.category : newTask.category} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, category: e.target.value }) : setNewTask({ ...newTask, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. Bug, Feature" />
                             </div>
-
-                            <div className="space-y-3">
-                                <label className="text-xs font-bold text-zinc-500 uppercase ml-1 flex items-center gap-2"><ImageIcon size={12} /> Images ({JSON.parse(editingNote ? editingNote.images : newNote.images).length})</label>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {JSON.parse(editingNote ? editingNote.images : newNote.images).map((img: string, idx: number) => (
-                                        <div key={idx} className="relative group/img rounded-xl overflow-hidden border border-zinc-800 aspect-square">
-                                            <img src={img} className="w-full h-full object-cover" />
-                                            <button onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500/80 text-white p-1 rounded-md opacity-0 group-hover/img:opacity-100 transition-opacity"><X size={12} /></button>
-                                        </div>
-                                    ))}
-                                    <div className="flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl aspect-square text-zinc-700">
-                                        <ImageIcon size={24} />
-                                    </div>
-                                </div>
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1"><Briefcase size={10} className="inline mr-1" /> Client</label>
+                                <input type="text" value={editingTask ? editingTask.client : newTask.client} onChange={(e) => editingTask ? setEditingTask({ ...editingTask, client: e.target.value }) : setNewTask({ ...newTask, client: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. Internal" />
+                            </div>
+                            <div className="space-y-2 group col-span-2">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1"><Activity size={10} className="inline mr-1" /> Current Status</label>
+                                <select
+                                    value={editingTask ? editingTask.status : newTask.status}
+                                    onChange={(e) => editingTask ? setEditingTask({ ...editingTask, status: e.target.value }) : setNewTask({ ...newTask, status: e.target.value })}
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="On Hold">On Hold</option>
+                                </select>
                             </div>
                         </div>
-                        <div className="p-8 bg-zinc-950/30">
-                            <button
-                                onClick={saveNote}
-                                disabled={loading || !(editingNote ? editingNote.content : newNote.content)}
-                                className="w-full px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
-                            >
-                                {loading ? "Capturing..." : (editingNote ? "Update Note" : "Create Note Entry")}
-                            </button>
-                        </div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveTask} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer text-center">{loading ? "Updating..." : (editingTask ? "Save Task Changes" : "Create Task")}</button></div>
                     </div>
                 </div>
             )}
