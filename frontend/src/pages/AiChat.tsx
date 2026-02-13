@@ -37,14 +37,14 @@ export default function AiChat() {
         <select value={provider} onChange={(e) => setProvider(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm">
           <option value="anthropic">Claude (Anthropic)</option>
           <option value="openai">GPT-4o (OpenAI)</option>
+          <option value="deepseek">DeepSeek</option>
         </select>
       </div>
       <div className="flex-1 overflow-auto bg-zinc-900 rounded-lg border border-zinc-800 p-4 mb-4 flex flex-col gap-3">
         {messages.length === 0 && <div className="text-zinc-500 text-sm m-auto">Start a conversation...</div>}
         {messages.map((msg, i) => (
-          <div key={i} className={`max-w-[80%] p-3 rounded-lg text-sm whitespace-pre-wrap ${
-            msg.role === "user" ? "bg-emerald-600/20 text-emerald-100 self-end" : "bg-zinc-800 self-start"
-          }`}>
+          <div key={i} className={`max-w-[80%] p-3 rounded-lg text-sm whitespace-pre-wrap ${msg.role === "user" ? "bg-emerald-600/20 text-emerald-100 self-end" : "bg-zinc-800 self-start"
+            }`}>
             {msg.content}
           </div>
         ))}

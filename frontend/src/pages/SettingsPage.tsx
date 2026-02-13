@@ -3,6 +3,7 @@ import { useState } from "react";
 export default function SettingsPage() {
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [deepseekKey, setDeepseekKey] = useState("");
   const [saved, setSaved] = useState(false);
 
   const inputClass = "w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500";
@@ -19,6 +20,10 @@ export default function SettingsPage() {
           <label className="text-sm text-zinc-400 mb-1 block">OpenAI API Key</label>
           <input type="password" value={openaiKey} onChange={(e) => setOpenaiKey(e.target.value)} className={inputClass} placeholder="sk-..." />
         </div>
+        <div>
+          <label className="text-sm text-zinc-400 mb-1 block">DeepSeek API Key</label>
+          <input type="password" value={deepseekKey} onChange={(e) => setDeepseekKey(e.target.value)} className={inputClass} placeholder="sk-..." />
+        </div>
         <button
           onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
           className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm w-fit cursor-pointer"
@@ -26,7 +31,7 @@ export default function SettingsPage() {
           {saved ? "✓ Saved!" : "Save Settings"}
         </button>
         <p className="text-xs text-zinc-500">
-          Tip: You can also set keys as environment variables: ANTHROPIC_API_KEY and OPENAI_API_KEY
+          Tip: You can also set keys as environment variables: ANTHROPIC_API_KEY, OPENAI_API_KEY, and DEEPSEEK_API_KEY
         </p>
       </div>
     </div>

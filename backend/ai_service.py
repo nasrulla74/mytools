@@ -6,6 +6,7 @@ class AiService:
     def __init__(self):
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.openai_key = os.getenv("OPENAI_API_KEY", "")
+        self.deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")
 
     async def chat(
         self,
@@ -19,6 +20,8 @@ class AiService:
                 return await self._anthropic_chat(prompt, model, system_prompt)
             elif provider == "openai":
                 return await self._openai_chat(prompt, model, system_prompt)
+            elif provider == "deepseek":
+                return await self._deepseek_chat(prompt, model, system_prompt)
             else:
                 return {"error": f"Unknown provider: {provider}"}
         except Exception as e:
@@ -49,6 +52,30 @@ class AiService:
         client = OpenAI(api_key=self.openai_key)
         response = client.chat.completions.create(
             model=model or "gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return {
+            "response": response.choices[0].message.content,
+            "model": response.model,
+            "usage": {
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+            },
+        }
+
+    async def _deepseek_chat(self, prompt, model, system_prompt):
+        from openai import OpenAI
+
+        # DeepSeek uses OpenAI-compatible API
+        client = OpenAI(
+            api_key=self.deepseek_key,
+            base_url="https://api.deepseek.com"
+        )
+        response = client.chat.completions.create(
+            model=model or "deepseek-chat",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
