@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink, Edit2, Filter } from "lucide-react";
+import { Globe, Server, CheckSquare, FileText, Plus, X, ExternalLink, Edit2, Filter, Activity, Copy, Check } from "lucide-react";
 
 type Tab = "Websites" | "Servers" | "Tasks" | "Notes";
 
@@ -12,30 +12,59 @@ interface Website {
     category: string;
 }
 
+interface ServerData {
+    id?: number;
+    server_name: string;
+    provider: string;
+    provider_link: string;
+    client: string;
+    server_ip: string;
+    description: string;
+}
+
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("Websites");
+
+    // Website States
     const [websites, setWebsites] = useState<Website[]>([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isWebModalOpen, setIsWebModalOpen] = useState(false);
     const [editingWebsite, setEditingWebsite] = useState<Website | null>(null);
     const [newWebsite, setNewWebsite] = useState<Website>({ name: "", link: "", icon: "", description: "", category: "General" });
+    const [webCategoryFilter, setWebCategoryFilter] = useState("All");
+
+    // Server States
+    const [servers, setServers] = useState<ServerData[]>([]);
+    const [isServerModalOpen, setIsServerModalOpen] = useState(false);
+    const [editingServer, setEditingServer] = useState<ServerData | null>(null);
+    const [newServer, setNewServer] = useState<ServerData>({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" });
+    const [serverClientFilter, setServerClientFilter] = useState("All");
+    const [serverProviderFilter, setServerProviderFilter] = useState("All");
+
     const [loading, setLoading] = useState(false);
-    const [categoryFilter, setCategoryFilter] = useState("All");
+    const [copiedIp, setCopiedIp] = useState<number | null>(null);
 
     useEffect(() => {
-        if (activeTab === "Websites") {
-            fetchWebsites();
-        }
+        if (activeTab === "Websites") fetchWebsites();
+        if (activeTab === "Servers") fetchServers();
     }, [activeTab]);
 
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+    // --- API Functions ---
     const fetchWebsites = async () => {
         try {
-            const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
             const res = await fetch(`${apiBase}/websites`);
             const data = await res.json();
             setWebsites(data);
-        } catch (e) {
-            console.error("Failed to fetch websites:", e);
-        }
+        } catch (e) { console.error("Failed to fetch websites:", e); }
+    };
+
+    const fetchServers = async () => {
+        try {
+            const res = await fetch(`${apiBase}/servers`);
+            const data = await res.json();
+            setServers(data);
+        } catch (e) { console.error("Failed to fetch servers:", e); }
     };
 
     const saveWebsite = async () => {
@@ -43,39 +72,57 @@ export default function Dashboard() {
         if (!websiteToSave.name || !websiteToSave.link) return;
         setLoading(true);
         try {
-            const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
             const method = editingWebsite ? "PUT" : "POST";
             const url = editingWebsite ? `${apiBase}/websites/${editingWebsite.id}` : `${apiBase}/websites`;
-
             await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(websiteToSave),
             });
-
-            setIsModalOpen(false);
+            setIsWebModalOpen(false);
             setEditingWebsite(null);
             setNewWebsite({ name: "", link: "", icon: "", description: "", category: "General" });
             fetchWebsites();
-        } catch (e) {
-            console.error("Failed to save website:", e);
-        } finally {
-            setLoading(false);
-        }
+        } catch (e) { console.error("Failed to save website:", e); } finally { setLoading(false); }
     };
 
-    const openEditModal = (e: React.MouseEvent, site: Website) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setEditingWebsite(site);
-        setIsModalOpen(true);
+    const saveServer = async () => {
+        const serverToSave = editingServer || newServer;
+        if (!serverToSave.server_name) return;
+        setLoading(true);
+        try {
+            const method = editingServer ? "PUT" : "POST";
+            const url = editingServer ? `${apiBase}/servers/${editingServer.id}` : `${apiBase}/servers`;
+            await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(serverToSave),
+            });
+            setIsServerModalOpen(false);
+            setEditingServer(null);
+            setNewServer({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" });
+            fetchServers();
+        } catch (e) { console.error("Failed to save server:", e); } finally { setLoading(false); }
     };
 
-    const categories = ["All", ...Array.from(new Set(websites.map(s => s.category || "General")))];
+    // --- Helpers ---
+    const copyToClipboard = (text: string, id: number) => {
+        navigator.clipboard.writeText(text);
+        setCopiedIp(id);
+        setTimeout(() => setCopiedIp(null), 2000);
+    };
 
-    const filteredWebsites = categoryFilter === "All"
-        ? websites
-        : websites.filter(s => s.category === categoryFilter);
+    const webCategories = ["All", ...Array.from(new Set(websites.map(s => s.category || "General")))];
+    const filteredWebsites = webCategoryFilter === "All" ? websites : websites.filter(s => s.category === webCategoryFilter);
+
+    const serverClients = ["All", ...Array.from(new Set(servers.map(s => s.client || "Self")))];
+    const serverProviders = ["All", ...Array.from(new Set(servers.map(s => s.provider || "Unknown")))];
+
+    const filteredServers = servers.filter(s => {
+        const clientMatch = serverClientFilter === "All" || s.client === serverClientFilter;
+        const providerMatch = serverProviderFilter === "All" || s.provider === serverProviderFilter;
+        return clientMatch && providerMatch;
+    });
 
     const tabs: { id: Tab; icon: any }[] = [
         { id: "Websites", icon: Globe },
@@ -88,19 +135,23 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-white">Dashboard</h2>
-                {activeTab === "Websites" && (
-                    <button
-                        onClick={() => {
+                <button
+                    onClick={() => {
+                        if (activeTab === "Websites") {
                             setEditingWebsite(null);
                             setNewWebsite({ name: "", link: "", icon: "", description: "", category: "General" });
-                            setIsModalOpen(true);
-                        }}
-                        className="group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95 cursor-pointer font-medium"
-                    >
-                        <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
-                        Add Website
-                    </button>
-                )}
+                            setIsWebModalOpen(true);
+                        } else if (activeTab === "Servers") {
+                            setEditingServer(null);
+                            setNewServer({ server_name: "", provider: "", provider_link: "", client: "", server_ip: "", description: "" });
+                            setIsServerModalOpen(true);
+                        }
+                    }}
+                    className="group flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95 cursor-pointer font-medium"
+                >
+                    <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                    Add {activeTab.slice(0, -1)}
+                </button>
             </div>
 
             {/* Tabs Header */}
@@ -120,192 +171,176 @@ export default function Dashboard() {
                 ))}
             </div>
 
-            {/* Filter Bar */}
-            {activeTab === "Websites" && websites.length > 0 && (
-                <div className="flex items-center gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                    <div className="flex items-center gap-2 text-zinc-500 text-sm whitespace-nowrap mr-2">
-                        <Filter size={14} />
-                        Filter:
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4">
+                {activeTab === "Websites" && websites.length > 0 && (
+                    <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                        <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Category:</span>
+                        {webCategories.map(cat => (
+                            <button key={cat} onClick={() => setWebCategoryFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${webCategoryFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                        ))}
                     </div>
-                    {categories.map((cat) => (
-                        <button
-                            key={cat}
-                            onClick={() => setCategoryFilter(cat)}
-                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap
-                ${categoryFilter === cat
-                                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30"
-                                    : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300"}`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                </div>
-            )}
+                )}
+                {activeTab === "Servers" && servers.length > 0 && (
+                    <>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Client:</span>
+                            {serverClients.map(cat => (
+                                <button key={cat} onClick={() => setServerClientFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${serverClientFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                            <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest whitespace-nowrap flex items-center gap-1"><Filter size={12} /> Provider:</span>
+                            {serverProviders.map(cat => (
+                                <button key={cat} onClick={() => setServerProviderFilter(cat)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${serverProviderFilter === cat ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30" : "bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700"}`}>{cat}</button>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
 
             {/* Tab Content */}
             <div className="min-h-[400px]">
-                {activeTab === "Websites" ? (
+                {activeTab === "Websites" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredWebsites.map((site, i) => (
-                            <div
-                                key={i}
-                                className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full"
-                            >
+                            <div key={i} className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
                                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
-
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-2xl shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all duration-500">
-                                        {site.icon || "🌐"}
-                                    </div>
+                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-2xl shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all duration-500">{site.icon || "🌐"}</div>
                                     <div className="flex gap-2 relative z-10">
-                                        <button
-                                            onClick={(e) => openEditModal(e, site)}
-                                            className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
-                                            title="Edit"
-                                        >
-                                            <Edit2 size={14} />
-                                        </button>
-                                        <a
-                                            href={site.link.startsWith('http') ? site.link : `https://${site.link}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
-                                            title="Open Website"
-                                        >
-                                            <ExternalLink size={14} />
-                                        </a>
+                                        <button onClick={() => { setEditingWebsite(site); setIsWebModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button>
+                                        <a href={site.link.startsWith('http') ? site.link : `https://${site.link}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><ExternalLink size={14} /></a>
                                     </div>
                                 </div>
-
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-emerald-500/70 transition-colors">
-                                        {site.category || "General"}
-                                    </span>
-                                </div>
-
+                                <div className="flex items-center gap-2 mb-2"><span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-emerald-500/70 transition-colors">{site.category || "General"}</span></div>
                                 <h3 className="text-lg font-bold text-zinc-100 mb-2 group-hover:text-emerald-400 transition-colors duration-300">{site.name}</h3>
                                 <p className="text-sm text-zinc-400 line-clamp-3 flex-1 leading-relaxed mb-4">{site.description || "No description provided."}</p>
-
-                                <a
-                                    href={site.link.startsWith('http') ? site.link : `https://${site.link}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center gap-2 group/btn cursor-pointer"
-                                >
+                                <a href={site.link.startsWith('http') ? site.link : `https://${site.link}`} target="_blank" rel="noopener noreferrer" className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center gap-2 group/btn cursor-pointer">
                                     <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold group-hover/btn:text-emerald-500 transition-colors">Visit Site</div>
                                     <div className="h-[1px] flex-1 bg-zinc-800 group-hover/btn:bg-emerald-500/20 transition-colors"></div>
                                     <ExternalLink size={10} className="text-zinc-600 group-hover/btn:text-emerald-500 transition-colors" />
                                 </a>
                             </div>
                         ))}
-                        {filteredWebsites.length === 0 && (
-                            <div className="col-span-full py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-800/30 rounded-3xl bg-zinc-900/10">
-                                <div className="mb-6 opacity-10 flex justify-center"><Globe size={80} /></div>
-                                <h4 className="text-xl font-medium text-zinc-300 mb-2">No websites found</h4>
-                                <p className="text-zinc-500">Try changing your filter or add a new website.</p>
-                            </div>
-                        )}
                     </div>
-                ) : (
+                )}
+
+                {activeTab === "Servers" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredServers.map((server, i) => (
+                            <div key={i} className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full">
+                                <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-emerald-400 shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 transition-all duration-500">
+                                        <Activity size={24} />
+                                    </div>
+                                    <div className="flex gap-2 relative z-10">
+                                        <button onClick={() => { setEditingServer(server); setIsServerModalOpen(true); }} className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><Edit2 size={14} /></button>
+                                        {server.provider_link && <a href={server.provider_link.startsWith('http') ? server.provider_link : `https://${server.provider_link}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"><ExternalLink size={14} /></a>}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] font-bold text-zinc-500 uppercase tracking-wider group-hover:text-emerald-500/70 transition-colors">{server.client || "Self"}</span>
+                                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">{server.provider || "Cloud"}</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-zinc-100 mb-1 group-hover:text-emerald-400 transition-colors duration-300">{server.server_name}</h3>
+
+                                <div
+                                    onClick={() => server.server_ip && copyToClipboard(server.server_ip, server.id!)}
+                                    className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800 px-3 py-2 rounded-xl mt-2 mb-4 cursor-pointer hover:border-emerald-500/30 group/ip transition-all"
+                                >
+                                    <code className="text-xs text-zinc-400 font-mono group-hover/ip:text-emerald-400">{server.server_ip || "0.0.0.0"}</code>
+                                    {copiedIp === server.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-zinc-600 group-hover/ip:text-emerald-500 opacity-50" />}
+                                </div>
+
+                                <p className="text-sm text-zinc-500 line-clamp-3 flex-1 leading-relaxed mb-4">{server.description || "No description provided."}</p>
+
+                                <div className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center gap-2 text-[10px] uppercase font-bold text-zinc-600">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                    Online · {server.server_ip ? 'Ready' : 'Pending'}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {(activeTab === "Tasks" || activeTab === "Notes") && (
                     <div className="bg-zinc-900/20 border border-zinc-800/50 rounded-3xl p-12 min-h-[400px] flex flex-col items-center justify-center text-center backdrop-blur-sm">
                         <div className="w-20 h-20 bg-zinc-800/50 rounded-2xl flex items-center justify-center mb-6 text-zinc-600 border border-zinc-700/50 shadow-xl">
-                            {(() => {
-                                const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon;
-                                return ActiveIcon ? <ActiveIcon size={36} /> : null;
-                            })()}
+                            {(() => { const ActiveIcon = tabs.find(t => t.id === activeTab)?.icon; return ActiveIcon ? <ActiveIcon size={36} /> : null; })()}
                         </div>
                         <h3 className="text-xl font-bold text-zinc-200 mb-3">{activeTab}</h3>
-                        <p className="text-zinc-500 max-w-sm leading-relaxed">
-                            This module is currently being optimized for the best experience.
-                            Stay tuned for more updates!
-                        </p>
+                        <p className="text-zinc-500 max-w-sm leading-relaxed">This module is currently being optimized for the best experience. Stay tuned!</p>
                     </div>
                 )}
             </div>
 
-            {/* Modal */}
-            {isModalOpen && (
+            {/* Website Modal */}
+            {isWebModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
                         <div className="flex justify-between items-center p-6 border-b border-zinc-800/50 bg-zinc-900/50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
-                                    {editingWebsite ? <Edit2 size={20} /> : <Plus size={20} />}
-                                </div>
-                                <h3 className="text-xl font-bold text-white">{editingWebsite ? "Edit Website" : "New Website"}</h3>
-                            </div>
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
-                            >
-                                <X size={20} />
-                            </button>
+                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">{editingWebsite ? <Edit2 size={20} /> : <Plus size={20} />}</div><h3 className="text-xl font-bold text-white">{editingWebsite ? "Edit Website" : "New Website"}</h3></div>
+                            <button onClick={() => setIsWebModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"><X size={20} /></button>
                         </div>
                         <div className="p-8 space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2 group">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Website Name</label>
-                                    <input
-                                        type="text"
-                                        value={editingWebsite ? editingWebsite.name : newWebsite.name}
-                                        onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, name: e.target.value }) : setNewWebsite({ ...newWebsite, name: e.target.value })}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
-                                        placeholder="e.g. Google"
-                                    />
+                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Name</label>
+                                    <input type="text" value={editingWebsite ? editingWebsite.name : newWebsite.name} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, name: e.target.value }) : setNewWebsite({ ...newWebsite, name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" />
                                 </div>
                                 <div className="space-y-2 group">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Category</label>
-                                    <input
-                                        type="text"
-                                        value={editingWebsite ? editingWebsite.category : newWebsite.category}
-                                        onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, category: e.target.value }) : setNewWebsite({ ...newWebsite, category: e.target.value })}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
-                                        placeholder="e.g. Tools"
-                                    />
+                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Category</label>
+                                    <input type="text" value={editingWebsite ? editingWebsite.category : newWebsite.category} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, category: e.target.value }) : setNewWebsite({ ...newWebsite, category: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" />
                                 </div>
+                            </div>
+                            <div className="space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Link</label><input type="text" value={editingWebsite ? editingWebsite.link : newWebsite.link} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, link: e.target.value }) : setNewWebsite({ ...newWebsite, link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="col-span-1 space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Icon</label><input type="text" value={editingWebsite ? editingWebsite.icon : newWebsite.icon} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, icon: e.target.value }) : setNewWebsite({ ...newWebsite, icon: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                                <div className="col-span-2 space-y-2 group"><label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Description</label><input type="text" value={editingWebsite ? editingWebsite.description : newWebsite.description} onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, description: e.target.value }) : setNewWebsite({ ...newWebsite, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" /></div>
+                            </div>
+                        </div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveWebsite} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer">{loading ? "Saving..." : (editingWebsite ? "Update Website" : "Create Website")}</button></div>
+                    </div>
+                </div>
+            )}
+
+            {/* Server Modal */}
+            {isServerModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                        <div className="flex justify-between items-center p-6 border-b border-zinc-800/50 bg-zinc-900/50">
+                            <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">{editingServer ? <Edit2 size={20} /> : <Plus size={20} />}</div><h3 className="text-xl font-bold text-white">{editingServer ? "Edit Server" : "New Server"}</h3></div>
+                            <button onClick={() => setIsServerModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800/50 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"><X size={20} /></button>
+                        </div>
+                        <div className="p-8 grid grid-cols-2 gap-6">
+                            <div className="space-y-2 group col-span-2">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Server Name</label>
+                                <input type="text" value={editingServer ? editingServer.server_name : newServer.server_name} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_name: e.target.value }) : setNewServer({ ...newServer, server_name: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. Production API" />
                             </div>
                             <div className="space-y-2 group">
-                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Destination Link</label>
-                                <input
-                                    type="text"
-                                    value={editingWebsite ? editingWebsite.link : newWebsite.link}
-                                    onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, link: e.target.value }) : setNewWebsite({ ...newWebsite, link: e.target.value })}
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
-                                    placeholder="https://google.com"
-                                />
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider</label>
+                                <input type="text" value={editingServer ? editingServer.provider : newServer.provider} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider: e.target.value }) : setNewServer({ ...newServer, provider: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. DigitalOcean" />
                             </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="col-span-1 space-y-2 group">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Emoji Icon</label>
-                                    <input
-                                        type="text"
-                                        value={editingWebsite ? editingWebsite.icon : newWebsite.icon}
-                                        onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, icon: e.target.value }) : setNewWebsite({ ...newWebsite, icon: e.target.value })}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-2xl text-center focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
-                                        placeholder="🚀"
-                                    />
-                                </div>
-                                <div className="col-span-2 space-y-2 group">
-                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 group-focus-within:text-emerald-500 transition-colors">Brief Description</label>
-                                    <input
-                                        type="text"
-                                        value={editingWebsite ? editingWebsite.description : newWebsite.description}
-                                        onChange={(e) => editingWebsite ? setEditingWebsite({ ...editingWebsite, description: e.target.value }) : setNewWebsite({ ...newWebsite, description: e.target.value })}
-                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none"
-                                        placeholder="What is this site?"
-                                    />
-                                </div>
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Provider Link</label>
+                                <input type="text" value={editingServer ? editingServer.provider_link : newServer.provider_link} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, provider_link: e.target.value }) : setNewServer({ ...newServer, provider_link: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="https://cloud.do.com" />
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Client / Project</label>
+                                <input type="text" value={editingServer ? editingServer.client : newServer.client} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, client: e.target.value }) : setNewServer({ ...newServer, client: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="e.g. ACME Corp" />
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Server IP</label>
+                                <input type="text" value={editingServer ? editingServer.server_ip : newServer.server_ip} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, server_ip: e.target.value }) : setNewServer({ ...newServer, server_ip: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none" placeholder="192.168.1.1" />
+                            </div>
+                            <div className="space-y-2 group col-span-2">
+                                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Notes / Description</label>
+                                <textarea value={editingServer ? editingServer.description : newServer.description} onChange={(e) => editingServer ? setEditingServer({ ...editingServer, description: e.target.value }) : setNewServer({ ...newServer, description: e.target.value })} className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-all outline-none h-24 resize-none" placeholder="Server details..." />
                             </div>
                         </div>
-                        <div className="p-8 bg-zinc-950/30 flex gap-4">
-                            <button
-                                onClick={saveWebsite}
-                                disabled={loading}
-                                className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer"
-                            >
-                                {loading ? "Saving..." : (editingWebsite ? "Update Website" : "Create Website Entry")}
-                            </button>
-                        </div>
+                        <div className="p-8 bg-zinc-950/30 flex gap-4"><button onClick={saveServer} disabled={loading} className="flex-1 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] cursor-pointer text-center">{loading ? "Saving..." : (editingServer ? "Update Server Entry" : "Register New Server")}</button></div>
                     </div>
                 </div>
             )}

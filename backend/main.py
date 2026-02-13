@@ -56,6 +56,14 @@ class Website(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = "General"
 
+class Server(BaseModel):
+    server_name: str
+    provider: Optional[str] = None
+    provider_link: Optional[str] = None
+    client: Optional[str] = None
+    server_ip: Optional[str] = None
+    description: Optional[str] = None
+
 
 # --- Endpoints ---
 @app.get("/health")
@@ -114,6 +122,35 @@ async def update_website(website_id: int, website: Website):
     conn.execute(
         "UPDATE websites SET name = ?, link = ?, icon = ?, description = ?, category = ? WHERE id = ?",
         (website.name, website.link, website.icon, website.description, website.category, website_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/servers")
+async def list_servers():
+    conn = get_db_connection()
+    servers = conn.execute("SELECT * FROM servers").fetchall()
+    conn.close()
+    return [dict(s) for s in servers]
+
+@app.post("/servers")
+async def add_server(server: Server):
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO servers (server_name, provider, provider_link, client, server_ip, description) VALUES (?, ?, ?, ?, ?, ?)",
+        (server.server_name, server.provider, server.provider_link, server.client, server.server_ip, server.description)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.put("/servers/{server_id}")
+async def update_server(server_id: int, server: Server):
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE servers SET server_name = ?, provider = ?, provider_link = ?, client = ?, server_ip = ?, description = ? WHERE id = ?",
+        (server.server_name, server.provider, server.provider_link, server.client, server.server_ip, server.description, server_id)
     )
     conn.commit()
     conn.close()

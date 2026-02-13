@@ -16,6 +16,17 @@ def init_db():
             category TEXT DEFAULT 'General'
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_name TEXT NOT NULL,
+            provider TEXT,
+            provider_link TEXT,
+            client TEXT,
+            server_ip TEXT,
+            description TEXT
+        )
+    ''')
     # Check if category column exists for existing DBs
     cursor.execute("PRAGMA table_info(websites)")
     columns = [column[1] for column in cursor.fetchall()]
