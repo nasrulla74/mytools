@@ -38,6 +38,16 @@ def init_db():
             date_completed TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content TEXT NOT NULL,
+            tags TEXT,
+            ref_link TEXT,
+            images TEXT,
+            date_created TEXT
+        )
+    ''')
     # Check if category column exists for existing DBs
     cursor.execute("PRAGMA table_info(websites)")
     columns = [column[1] for column in cursor.fetchall()]
