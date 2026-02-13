@@ -72,6 +72,13 @@ class Task(BaseModel):
     date_created: Optional[str] = None
     date_completed: Optional[str] = None
 
+class Note(BaseModel):
+    content: str
+    tags: Optional[str] = None
+    ref_link: Optional[str] = None
+    images: Optional[str] = None
+    date_created: Optional[str] = None
+
 
 # --- Endpoints ---
 @app.get("/health")
@@ -188,6 +195,35 @@ async def update_task(task_id: int, task: Task):
     conn.execute(
         "UPDATE tasks SET task_name = ?, category = ?, client = ?, status = ?, date_created = ?, date_completed = ? WHERE id = ?",
         (task.task_name, task.category, task.client, task.status, task.date_created, task.date_completed, task_id)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/notes")
+async def list_notes():
+    conn = get_db_connection()
+    notes = conn.execute("SELECT * FROM notes").fetchall()
+    conn.close()
+    return [dict(n) for n in notes]
+
+@app.post("/notes")
+async def add_note(note: Note):
+    conn = get_db_connection()
+    conn.execute(
+        "INSERT INTO notes (content, tags, ref_link, images, date_created) VALUES (?, ?, ?, ?, ?)",
+        (note.content, note.tags, note.ref_link, note.images, note.date_created)
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.put("/notes/{note_id}")
+async def update_note(note_id: int, note: Note):
+    conn = get_db_connection()
+    conn.execute(
+        "UPDATE notes SET content = ?, tags = ?, ref_link = ?, images = ?, date_created = ? WHERE id = ?",
+        (note.content, note.tags, note.ref_link, note.images, note.date_created, note_id)
     )
     conn.commit()
     conn.close()
