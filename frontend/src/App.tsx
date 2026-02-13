@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Code, Zap, Bot, Settings } from "lucide-react";
+import { Code, Zap, Bot, Settings, LayoutDashboard } from "lucide-react";
 import CodeRunner from "./pages/CodeRunner";
 import ApiDashboard from "./pages/ApiDashboard";
 import AiChat from "./pages/AiChat";
 import SettingsPage from "./pages/SettingsPage";
+import Dashboard from "./pages/Dashboard";
 
 const navItems = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "code", label: "Code Runner", icon: Code },
   { id: "apis", label: "API Caller", icon: Zap },
   { id: "ai", label: "AI Chat", icon: Bot },
@@ -13,7 +15,7 @@ const navItems = [
 ];
 
 export default function App() {
-  const [active, setActive] = useState("code");
+  const [active, setActive] = useState("dashboard");
 
   return (
     <div className="flex h-screen">
@@ -37,11 +39,13 @@ export default function App() {
 
       {/* Main */}
       <main className="flex-1 overflow-auto p-6 bg-zinc-950">
+        {active === "dashboard" && <Dashboard />}
         {active === "code" && <CodeRunner />}
         {active === "apis" && <ApiDashboard />}
         {active === "ai" && <AiChat />}
         {active === "settings" && <SettingsPage />}
       </main>
+
     </div>
   );
 }
