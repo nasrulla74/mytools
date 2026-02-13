@@ -147,11 +147,8 @@ export default function Dashboard() {
                 {activeTab === "Websites" ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredWebsites.map((site, i) => (
-                            <a
+                            <div
                                 key={i}
-                                href={site.link.startsWith('http') ? site.link : `https://${site.link}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="group relative bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-2xl hover:border-emerald-500/50 hover:bg-zinc-800/40 transition-all duration-500 hover:-translate-y-2 overflow-hidden flex flex-col h-full"
                             >
                                 <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-500"></div>
@@ -160,16 +157,23 @@ export default function Dashboard() {
                                     <div className="w-12 h-12 bg-zinc-800/80 rounded-xl flex items-center justify-center text-2xl shadow-inner border border-zinc-700/50 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 group-hover:border-emerald-500/20 transition-all duration-500">
                                         {site.icon || "🌐"}
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 relative z-10">
                                         <button
                                             onClick={(e) => openEditModal(e, site)}
                                             className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
+                                            title="Edit"
                                         >
                                             <Edit2 size={14} />
                                         </button>
-                                        <div className="p-2 rounded-lg bg-zinc-800/50">
-                                            <ExternalLink size={14} className="text-zinc-500 group-hover:text-emerald-400" />
-                                        </div>
+                                        <a
+                                            href={site.link.startsWith('http') ? site.link : `https://${site.link}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 rounded-lg bg-zinc-800/50 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all cursor-pointer"
+                                            title="Open Website"
+                                        >
+                                            <ExternalLink size={14} />
+                                        </a>
                                     </div>
                                 </div>
 
@@ -180,13 +184,19 @@ export default function Dashboard() {
                                 </div>
 
                                 <h3 className="text-lg font-bold text-zinc-100 mb-2 group-hover:text-emerald-400 transition-colors duration-300">{site.name}</h3>
-                                <p className="text-sm text-zinc-400 line-clamp-3 flex-1 leading-relaxed">{site.description || "No description provided."}</p>
+                                <p className="text-sm text-zinc-400 line-clamp-3 flex-1 leading-relaxed mb-4">{site.description || "No description provided."}</p>
 
-                                <div className="mt-4 pt-4 border-t border-zinc-800/50 flex items-center gap-2">
-                                    <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold group-hover:text-emerald-500/70 transition-colors">Visit Site</div>
-                                    <div className="h-[1px] flex-1 bg-zinc-800 group-hover:bg-emerald-500/20 transition-colors"></div>
-                                </div>
-                            </a>
+                                <a
+                                    href={site.link.startsWith('http') ? site.link : `https://${site.link}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center gap-2 group/btn cursor-pointer"
+                                >
+                                    <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold group-hover/btn:text-emerald-500 transition-colors">Visit Site</div>
+                                    <div className="h-[1px] flex-1 bg-zinc-800 group-hover/btn:bg-emerald-500/20 transition-colors"></div>
+                                    <ExternalLink size={10} className="text-zinc-600 group-hover/btn:text-emerald-500 transition-colors" />
+                                </a>
+                            </div>
                         ))}
                         {filteredWebsites.length === 0 && (
                             <div className="col-span-full py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-800/30 rounded-3xl bg-zinc-900/10">
