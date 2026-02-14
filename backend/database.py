@@ -1,14 +1,29 @@
-import sqlite3
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import time
 
-DB_PATH = "local_storage.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://myuser:mypassword@db:5432/mytools")
+
+def get_db_connection():
+    # Retry logic for DB connection (useful in docker-compose)
+    for _ in range(5):
+        try:
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            return conn
+        except Exception as e:
+            print(f"Database connection failed, retrying... {e}")
+            time.sleep(2)
+    raise Exception("Could not connect to the database")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # websites table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS websites (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             link TEXT NOT NULL,
             icon TEXT,
@@ -16,9 +31,11 @@ def init_db():
             category TEXT DEFAULT 'General'
         )
     ''')
+    
+    # servers table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS servers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             server_name TEXT NOT NULL,
             provider TEXT,
             provider_link TEXT,
@@ -27,9 +44,11 @@ def init_db():
             description TEXT
         )
     ''')
+    
+    # tasks table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             task_name TEXT NOT NULL,
             category TEXT,
             client TEXT,
@@ -38,9 +57,11 @@ def init_db():
             date_completed TEXT
         )
     ''')
+    
+    # notes table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             content TEXT NOT NULL,
             tags TEXT,
             ref_link TEXT,
@@ -48,16 +69,7 @@ def init_db():
             date_created TEXT
         )
     ''')
-    # Check if category column exists for existing DBs
-    cursor.execute("PRAGMA table_info(websites)")
-    columns = [column[1] for column in cursor.fetchall()]
-    if 'category' not in columns:
-        cursor.execute("ALTER TABLE websites ADD COLUMN category TEXT DEFAULT 'General'")
     
     conn.commit()
+    cursor.close()
     conn.close()
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn

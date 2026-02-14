@@ -116,116 +116,144 @@ async def ai_chat(req: AiChatRequest):
 @app.get("/websites")
 async def list_websites():
     conn = get_db_connection()
-    websites = conn.execute("SELECT * FROM websites").fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM websites")
+    websites = cur.fetchall()
+    cur.close()
     conn.close()
     return [dict(w) for w in websites]
 
 @app.post("/websites")
 async def add_website(website: Website):
     conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO websites (name, link, icon, description, category) VALUES (?, ?, ?, ?, ?)",
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO websites (name, link, icon, description, category) VALUES (%s, %s, %s, %s, %s)",
         (website.name, website.link, website.icon, website.description, website.category)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.put("/websites/{website_id}")
 async def update_website(website_id: int, website: Website):
     conn = get_db_connection()
-    conn.execute(
-        "UPDATE websites SET name = ?, link = ?, icon = ?, description = ?, category = ? WHERE id = ?",
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE websites SET name = %s, link = %s, icon = %s, description = %s, category = %s WHERE id = %s",
         (website.name, website.link, website.icon, website.description, website.category, website_id)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.get("/servers")
 async def list_servers():
     conn = get_db_connection()
-    servers = conn.execute("SELECT * FROM servers").fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM servers")
+    servers = cur.fetchall()
+    cur.close()
     conn.close()
     return [dict(s) for s in servers]
 
 @app.post("/servers")
 async def add_server(server: Server):
     conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO servers (server_name, provider, provider_link, client, server_ip, description) VALUES (?, ?, ?, ?, ?, ?)",
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO servers (server_name, provider, provider_link, client, server_ip, description) VALUES (%s, %s, %s, %s, %s, %s)",
         (server.server_name, server.provider, server.provider_link, server.client, server.server_ip, server.description)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.put("/servers/{server_id}")
 async def update_server(server_id: int, server: Server):
     conn = get_db_connection()
-    conn.execute(
-        "UPDATE servers SET server_name = ?, provider = ?, provider_link = ?, client = ?, server_ip = ?, description = ? WHERE id = ?",
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE servers SET server_name = %s, provider = %s, provider_link = %s, client = %s, server_ip = %s, description = %s WHERE id = %s",
         (server.server_name, server.provider, server.provider_link, server.client, server.server_ip, server.description, server_id)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.get("/tasks")
 async def list_tasks():
     conn = get_db_connection()
-    tasks = conn.execute("SELECT * FROM tasks").fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM tasks")
+    tasks = cur.fetchall()
+    cur.close()
     conn.close()
     return [dict(t) for t in tasks]
 
 @app.post("/tasks")
 async def add_task(task: Task):
     conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO tasks (task_name, category, client, status, date_created, date_completed) VALUES (?, ?, ?, ?, ?, ?)",
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO tasks (task_name, category, client, status, date_created, date_completed) VALUES (%s, %s, %s, %s, %s, %s)",
         (task.task_name, task.category, task.client, task.status, task.date_created, task.date_completed)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.put("/tasks/{task_id}")
 async def update_task(task_id: int, task: Task):
     conn = get_db_connection()
-    conn.execute(
-        "UPDATE tasks SET task_name = ?, category = ?, client = ?, status = ?, date_created = ?, date_completed = ? WHERE id = ?",
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE tasks SET task_name = %s, category = %s, client = %s, status = %s, date_created = %s, date_completed = %s WHERE id = %s",
         (task.task_name, task.category, task.client, task.status, task.date_created, task.date_completed, task_id)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.get("/notes")
 async def list_notes():
     conn = get_db_connection()
-    notes = conn.execute("SELECT * FROM notes").fetchall()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM notes")
+    notes = cur.fetchall()
+    cur.close()
     conn.close()
     return [dict(n) for n in notes]
 
 @app.post("/notes")
 async def add_note(note: Note):
     conn = get_db_connection()
-    conn.execute(
-        "INSERT INTO notes (content, tags, ref_link, images, date_created) VALUES (?, ?, ?, ?, ?)",
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO notes (content, tags, ref_link, images, date_created) VALUES (%s, %s, %s, %s, %s)",
         (note.content, note.tags, note.ref_link, note.images, note.date_created)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 
 @app.put("/notes/{note_id}")
 async def update_note(note_id: int, note: Note):
     conn = get_db_connection()
-    conn.execute(
-        "UPDATE notes SET content = ?, tags = ?, ref_link = ?, images = ?, date_created = ? WHERE id = ?",
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE notes SET content = %s, tags = %s, ref_link = %s, images = %s, date_created = %s WHERE id = %s",
         (note.content, note.tags, note.ref_link, note.images, note.date_created, note_id)
     )
     conn.commit()
+    cur.close()
     conn.close()
     return {"status": "success"}
 

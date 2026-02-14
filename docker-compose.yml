@@ -7,13 +7,34 @@ services:
       - "8000"
     environment:
       - VITE_API_URL=https://mytools.appeul.com
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    networks:
+      - web-proxy
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: mytools-db
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-myuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mypassword}
+      - POSTGRES_DB=${POSTGRES_DB:-mytools}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - web-proxy
 
 networks:
   web-proxy:
     external: true
+
+volumes:
+  postgres_data:
+    name: common_postgres_data # Sharing this volume if other apps want the same DB instance data, or just a descriptive name.
+
 
