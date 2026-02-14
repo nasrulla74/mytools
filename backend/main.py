@@ -130,6 +130,7 @@ async def register(user: UserAuth):
     conn = get_db_connection()
     cur = conn.cursor()
     try:
+        cur.execute("SELECT 1")
         cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="Username already exists")
@@ -141,8 +142,11 @@ async def register(user: UserAuth):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"Registration error: {e}")
+        traceback.print_exc()
         conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
     finally:
         cur.close()
         conn.close()
