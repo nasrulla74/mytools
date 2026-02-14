@@ -85,7 +85,7 @@ export default function Dashboard() {
         if (activeTab === "Notes") fetchNotes();
     }, [activeTab]);
 
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    const apiBase = import.meta.env.MODE === "production" ? "" : (import.meta.env.VITE_API_URL || "http://localhost:8000");
 
     // --- API Functions ---
     const fetchWebsites = async () => {
