@@ -129,36 +129,38 @@ class Note(BaseModel):
 async def register(user: UserAuth):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
-    if cur.fetchone():
+    try:
+        cur.execute("SELECT * FROM users WHERE username = %s", (user.username,))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="Username already exists")
+        
+        hashed_pwd = get_password_hash(user.password)
+        cur.execute("INSERT INTO users (username, hashed_password) VALUES (%s, %s)", (user.username, hashed_pwd))
+        conn.commit()
+        return {"message": "User registered successfully"}
+    finally:
         cur.close()
         conn.close()
-        raise HTTPException(status_code=400, detail="Username already exists")
-    
-    hashed_pwd = get_password_hash(user.password)
-    cur.execute("INSERT INTO users (username, hashed_password) VALUES (%s, %s)", (user.username, hashed_pwd))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"message": "User registered successfully"}
 
 @app.post("/auth/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE username = %s", (form_data.username,))
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        cur.execute("SELECT * FROM users WHERE username = %s", (form_data.username,))
+        user = cur.fetchone()
+        
+        if not user or not verify_password(form_data.password, user['hashed_password']):
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    if not user or not verify_password(form_data.password, user['hashed_password']):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user['username']}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user['username']}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token, "token_type": "bearer"}
+    finally:
+        cur.close()
+        conn.close()
 
 # --- Protected App Endpoints ---
 @app.post("/run-code")
