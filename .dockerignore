@@ -1,0 +1,35 @@
+# Dependencies
+frontend/node_modules
+frontend/.git
+
+# Build outputs (will be rebuilt in docker)
+frontend/dist
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose.yml
+Dockerfile
+setup_vps.sh
+
+# Claude
+.claude/
+
+# Env
+.env
+.env.local
