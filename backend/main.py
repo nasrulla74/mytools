@@ -138,6 +138,11 @@ async def register(user: UserAuth):
         cur.execute("INSERT INTO users (username, hashed_password) VALUES (%s, %s)", (user.username, hashed_pwd))
         conn.commit()
         return {"message": "User registered successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         cur.close()
         conn.close()
