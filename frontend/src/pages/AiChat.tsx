@@ -9,6 +9,8 @@ export default function AiChat() {
   const [provider, setProvider] = useState("anthropic");
   const [loading, setLoading] = useState(false);
 
+  const token = localStorage.getItem("token");
+
   const send = async () => {
     if (!input.trim() || loading) return;
 
@@ -20,10 +22,13 @@ export default function AiChat() {
     setInput("");
     setLoading(true);
     try {
-      const apiBase = import.meta.env.VITE_API_URL || "";
+      const apiBase = import.meta.env.MODE === "production" ? "" : (import.meta.env.VITE_API_URL || "http://localhost:8000");
       const res = await fetch(`${apiBase}/ai/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           prompt: input,
           provider,
@@ -40,37 +45,66 @@ export default function AiChat() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">AI Chat</h2>
-        <select value={provider} onChange={(e) => setProvider(e.target.value)} className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm">
-          <option value="anthropic">Claude (Anthropic)</option>
-          <option value="openai">GPT-4o (OpenAI)</option>
-          <option value="deepseek">DeepSeek</option>
+    <div className="flex flex-col h-full bg-zinc-950/50 backdrop-blur-xl border border-zinc-800 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      <div className="p-8 border-b border-zinc-900 flex justify-between items-center bg-zinc-900/30">
+        <div>
+          <h2 className="text-2xl font-black text-white tracking-tight">AI Neural Chat</h2>
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mt-1">Multi-Model Processing Interface</p>
+        </div>
+        <select value={provider} onChange={(e) => setProvider(e.target.value)} className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-xs font-bold text-zinc-400 focus:border-emerald-500/50 transition-all outline-none">
+          <option value="anthropic">Claude-3.5 Sonnet</option>
+          <option value="openai">GPT-4o Omnimodel</option>
+          <option value="deepseek">DeepSeek-V3 Coder</option>
         </select>
       </div>
-      <div className="flex-1 overflow-auto bg-zinc-900 rounded-lg border border-zinc-800 p-4 mb-4 flex flex-col gap-3">
-        {messages.length === 0 && <div className="text-zinc-500 text-sm m-auto">Start a conversation...</div>}
+
+      <div className="flex-1 overflow-auto p-8 flex flex-col gap-6 custom-scrollbar">
+        {messages.length === 0 && (
+          <div className="m-auto text-center space-y-4 opacity-20">
+            <Bot size={64} className="mx-auto text-emerald-500" />
+            <div className="text-sm font-black uppercase tracking-[0.3em] text-zinc-500">Awaiting Input...</div>
+          </div>
+        )}
         {messages.map((msg, i) => (
-          <div key={i} className={`max-w-[80%] p-3 rounded-lg text-sm whitespace-pre-wrap ${msg.role === "user" ? "bg-emerald-600/20 text-emerald-100 self-end" : "bg-zinc-800 self-start"
-            }`}>
-            {msg.content}
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[85%] p-5 rounded-[1.5rem] text-sm font-medium leading-relaxed whitespace-pre-wrap shadow-xl ${msg.role === "user"
+                ? "bg-emerald-600 text-white rounded-br-none"
+                : "bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-bl-none"
+              }`}>
+              {msg.content}
+            </div>
           </div>
         ))}
-        {loading && <div className="self-start text-zinc-500"><Loader2 size={16} className="animate-spin" /></div>}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl rounded-bl-none flex items-center gap-3">
+              <Loader2 size={16} className="animate-spin text-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Thinking...</span>
+            </div>
+          </div>
+        )}
       </div>
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Ask something..."
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-emerald-500"
-        />
-        <button onClick={send} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 px-4 rounded-lg cursor-pointer">
-          <Send size={18} />
-        </button>
+
+      <div className="p-8 bg-zinc-950/50 border-t border-zinc-900">
+        <div className="relative group">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send()}
+            placeholder="Initialize query..."
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-6 py-5 pr-16 text-white outline-none focus:border-emerald-500/50 transition-all font-medium placeholder:text-zinc-700"
+          />
+          <button
+            onClick={send}
+            disabled={loading}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/20 active:scale-95 transition-all cursor-pointer disabled:opacity-30"
+          >
+            <Send size={20} />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
+import { Bot } from "lucide-react";

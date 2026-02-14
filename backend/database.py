@@ -57,7 +57,7 @@ def init_db():
             date_completed TEXT
         )
     ''')
-    
+
     # notes table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS notes (
@@ -67,6 +67,15 @@ def init_db():
             ref_link TEXT,
             images TEXT,
             date_created TEXT
+        )
+    ''')
+    
+    # users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            hashed_password TEXT NOT NULL
         )
     ''')
     
