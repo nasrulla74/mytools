@@ -91,6 +91,16 @@ export default function Dashboard() {
         });
     };
 
+    const handleAuthError = (res: Response) => {
+        if (res.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.reload();
+            return true;
+        }
+        return false;
+    };
+
     useEffect(() => {
         if (activeTab === "Websites") fetchWebsites();
         if (activeTab === "Servers") fetchServers();
@@ -103,6 +113,7 @@ export default function Dashboard() {
     const fetchWebsites = async () => {
         try {
             const res = await authFetch(`${apiBase}/websites`);
+            if (handleAuthError(res)) return;
             const data = await res.json();
             setWebsites(data);
         } catch (e) { console.error("Failed to fetch websites:", e); }
@@ -111,6 +122,7 @@ export default function Dashboard() {
     const fetchServers = async () => {
         try {
             const res = await authFetch(`${apiBase}/servers`);
+            if (handleAuthError(res)) return;
             const data = await res.json();
             setServers(data);
         } catch (e) { console.error("Failed to fetch servers:", e); }
@@ -119,6 +131,7 @@ export default function Dashboard() {
     const fetchTasks = async () => {
         try {
             const res = await authFetch(`${apiBase}/tasks`);
+            if (handleAuthError(res)) return;
             const data = await res.json();
             setTasks(data);
         } catch (e) { console.error("Failed to fetch tasks:", e); }
@@ -127,6 +140,7 @@ export default function Dashboard() {
     const fetchNotes = async () => {
         try {
             const res = await authFetch(`${apiBase}/notes`);
+            if (handleAuthError(res)) return;
             const data = await res.json();
             setNotes(data);
         } catch (e) { console.error("Failed to fetch notes:", e); }

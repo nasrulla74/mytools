@@ -38,6 +38,32 @@ export default function App() {
     setUser(null);
   };
 
+  useEffect(() => {
+    if (token) {
+      const apiBase = import.meta.env.MODE === "production" ? "" : (import.meta.env.VITE_API_URL || "http://localhost:8000");
+      fetch(`${apiBase}/me`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      }).then(res => {
+        if (!res.ok) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setToken(null);
+          setUser(null);
+        } else {
+          res.json().then(data => {
+            localStorage.setItem("user", data.username);
+            setUser(data.username);
+          }).catch(() => {});
+        }
+      }).catch(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setToken(null);
+        setUser(null);
+      });
+    }
+  }, [token]);
+
   if (!token) {
     return <LoginPage onLogin={handleLogin} />;
   }

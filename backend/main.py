@@ -163,6 +163,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         conn.close()
 
 # --- Protected App Endpoints ---
+@app.get("/me")
+async def get_me(username: str = Depends(get_current_user)):
+    return {"username": username}
+
 @app.post("/run-code")
 async def run_code(req: RunCodeRequest, username: str = Depends(get_current_user)):
     return code_runner.run(req.code, req.timeout)

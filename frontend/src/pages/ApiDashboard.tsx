@@ -11,6 +11,16 @@ export default function ApiDashboard() {
 
   const token = localStorage.getItem("token");
 
+  const handleAuthError = (res: Response) => {
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.reload();
+      return true;
+    }
+    return false;
+  };
+
   const callApi = async () => {
     setLoading(true);
     setResponse("");
@@ -29,6 +39,7 @@ export default function ApiDashboard() {
           body: body ? JSON.parse(body) : null,
         }),
       });
+      if (handleAuthError(res)) return;
       const data = await res.json();
       setResponse(JSON.stringify(data, null, 2));
     } catch (e: any) {

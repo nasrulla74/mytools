@@ -9,6 +9,16 @@ export default function CodeRunner() {
 
   const token = localStorage.getItem("token");
 
+  const handleAuthError = (res: Response) => {
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.reload();
+      return true;
+    }
+    return false;
+  };
+
   const runCode = async () => {
     setLoading(true);
     setOutput("");
@@ -22,6 +32,7 @@ export default function CodeRunner() {
         },
         body: JSON.stringify({ code }),
       });
+      if (handleAuthError(res)) return;
       const data = await res.json();
       setOutput(data.success ? data.output : `❌ System Error:\n${data.error}`);
     } catch (e: any) {

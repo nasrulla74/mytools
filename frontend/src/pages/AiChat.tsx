@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Bot } from "lucide-react";
 
 interface Message { role: "user" | "assistant"; content: string }
 
@@ -10,6 +10,16 @@ export default function AiChat() {
   const [loading, setLoading] = useState(false);
 
   const token = localStorage.getItem("token");
+
+  const handleAuthError = (res: Response) => {
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.reload();
+      return true;
+    }
+    return false;
+  };
 
   const send = async () => {
     if (!input.trim() || loading) return;
@@ -35,6 +45,7 @@ export default function AiChat() {
           api_key: apiKey
         }),
       });
+      if (handleAuthError(res)) return;
       const data = await res.json();
       setMessages((m) => [...m, { role: "assistant", content: data.response || data.error }]);
     } catch (e: any) {

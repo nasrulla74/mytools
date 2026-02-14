@@ -34,7 +34,15 @@ export default function LoginPage({ onLogin }: LoginProps) {
 
                 if (res.ok) {
                     const data = await res.json();
-                    onLogin(data.access_token);
+                    const apiBase = import.meta.env.MODE === "production" ? "" : (import.meta.env.VITE_API_URL || "http://localhost:8000");
+                    const verifyRes = await fetch(`${apiBase}/me`, {
+                        headers: { "Authorization": `Bearer ${data.access_token}` }
+                    });
+                    if (verifyRes.ok) {
+                        onLogin(data.access_token);
+                    } else {
+                        setError("Login succeeded but verification failed. Try again.");
+                    }
                 } else {
                     const data = await res.json();
                     setError(data.detail || "Invalid credentials");
