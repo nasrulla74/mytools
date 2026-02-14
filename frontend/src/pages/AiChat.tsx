@@ -117,5 +117,3 @@ export default function AiChat() {
     </div>
   );
 }
-
-import { Bot } from "lucide-react";
